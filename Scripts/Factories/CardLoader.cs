@@ -17,7 +17,7 @@ namespace Factories
         public CardLoader(EntityManager entityManager)
         {
             _entityManager = entityManager;
-            _factory = new ScriptableObjectFactory(entityManager);
+            // _factory = new ScriptableObjectFactory(entityManager);
         }
         
         /// <summary>

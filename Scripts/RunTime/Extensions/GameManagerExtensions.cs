@@ -1,109 +1,64 @@
-﻿using Core;
-using Core.Utils;
-using Systems;
+﻿using System.Collections.Generic;
+using Core;
 
 namespace RunTime
 {
     /// <summary>
-    /// Extension methods for GameManager
+    /// Extension methods for GameManager to integrate with LoadCardData
     /// </summary>
-    public static class GameManagerExtensions
+    public static class GameManagerCardExtensions
     {
         /// <summary>
-        /// Get the entity manager
+        /// Create a random deck for starting a new game
         /// </summary>
-        public static EntityManager GetEntityManager(this GameManager gameManager)
+        public static List<Entity> CreateRandomDeck(this GameManager gameManager, int deckSize = 10, bool balanced = true)
         {
-            // Use reflection to get the private entityManager field
-            // This is a workaround for the lack of proper access to private fields
-            System.Reflection.FieldInfo field = typeof(GameManager).GetField("entityManager", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            
-            return field?.GetValue(gameManager) as EntityManager;
+            // Use LoadCardData to create a random deck
+            return LoadCardData.Instance.CreateRandomDeck(deckSize, balanced);
         }
         
         /// <summary>
-        /// Get the card system
+        /// Create a random starter deck with a specific theme
         /// </summary>
-        public static CardSystem GetCardSystem(this GameManager gameManager)
+        public static List<Entity> CreateRandomStarterDeck(this GameManager gameManager, string theme = "balanced", int deckSize = 8)
         {
-            // Use reflection to get the private cardSystem field
-            System.Reflection.FieldInfo field = typeof(GameManager).GetField("cardSystem", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            
-            return field?.GetValue(gameManager) as CardSystem;
+            return LoadCardData.Instance.CreateRandomStarterDeck(theme, deckSize);
         }
         
         /// <summary>
-        /// Get the battle system
+        /// Get a card by key name
         /// </summary>
-        public static BattleSystem GetBattleSystem(this GameManager gameManager)
+        public static Entity GetCardByKeyName(this GameManager gameManager, string keyName)
         {
-            // Use reflection to get the private battleSystem field
-            System.Reflection.FieldInfo field = typeof(GameManager).GetField("battleSystem", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            
-            return field?.GetValue(gameManager) as BattleSystem;
+            // Use LoadCardData to get a card by key name
+            return LoadCardData.Instance.GetCardByKeyName(keyName);
         }
         
         /// <summary>
-        /// Get the element interaction system
+        /// Get cards by element
         /// </summary>
-        public static ElementInteractionSystem GetElementInteractionSystem(this GameManager gameManager)
+        public static List<Entity> GetCardsByElement(this GameManager gameManager, Core.Utils.ElementType elementType)
         {
-            // Use reflection to get the private elementInteractionSystem field
-            System.Reflection.FieldInfo field = typeof(GameManager).GetField("elementInteractionSystem", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            
-            return field?.GetValue(gameManager) as ElementInteractionSystem;
+            // Use LoadCardData to get cards by element
+            return LoadCardData.Instance.GetCardsByElement(elementType);
         }
         
         /// <summary>
-        /// Get the support card system
+        /// Get cards by type
         /// </summary>
-        public static SupportCardSystem GetSupportCardSystem(this GameManager gameManager)
+        public static List<Entity> GetCardsByType(this GameManager gameManager, Core.Utils.CardType cardType)
         {
-            // Use reflection to get the private supportCardSystem field
-            System.Reflection.FieldInfo field = typeof(GameManager).GetField("supportCardSystem", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            
-            return field?.GetValue(gameManager) as SupportCardSystem;
+            // Use LoadCardData to get cards by type
+            return LoadCardData.Instance.GetCardsByType(cardType);
         }
         
         /// <summary>
-        /// Get the player entity
+        /// Get cards by rarity
         /// </summary>
-        public static Entity GetPlayerEntity(this GameManager gameManager)
+        public static List<Entity> GetCardsByRarity(this GameManager gameManager, Core.Utils.Rarity rarity)
         {
-            // Use reflection to get the private playerEntity field
-            System.Reflection.FieldInfo field = typeof(GameManager).GetField("playerEntity", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            
-            return field?.GetValue(gameManager) as Entity;
-        }
-        
-        /// <summary>
-        /// Get the enemy entity
-        /// </summary>
-        public static Entity GetEnemyEntity(this GameManager gameManager)
-        {
-            // Use reflection to get the private enemyEntity field
-            System.Reflection.FieldInfo field = typeof(GameManager).GetField("enemyEntity", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            
-            return field?.GetValue(gameManager) as Entity;
-        }
-        
-        /// <summary>
-        /// Get the current season
-        /// </summary>
-        public static Season GetCurrentSeason(this GameManager gameManager)
-        {
-            // Use reflection to get the private currentSeason field
-            System.Reflection.FieldInfo field = typeof(GameManager).GetField("currentSeason", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            
-            return (Season)(field?.GetValue(gameManager) ?? Season.Spring);
+            // Use LoadCardData to get cards by rarity
+            return LoadCardData.Instance.GetCardsByRarity(rarity);
         }
     }
 }

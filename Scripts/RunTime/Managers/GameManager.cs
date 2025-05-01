@@ -77,7 +77,7 @@ namespace RunTime
             
             // Create factories
             _cardFactory = new CardFactory(_entityManager);
-            _scriptableObjectFactory = new ScriptableObjectFactory(_entityManager);
+            // _scriptableObjectFactory = new ScriptableObjectFactory(_entityManager);
             
             // Set initial season
             _elementInteractionSystem.SetSeason(_currentSeason);
@@ -101,83 +101,101 @@ namespace RunTime
             }
         }
         
-        /// <summary>
-        /// Start a new game
-        /// </summary>
         public void StartNewGame()
         {
             Debug.Log("Starting new game...");
-            
+    
+            LoadCardData.Instance.LoadAllCards();
+    
             // Reset player stats
             _playerHealth = _maxPlayerHealth;
             _playerGold = 0;
-            
+    
             // Create player entity
             _playerEntity = CreatePlayerEntity();
-            
-            // Create a sample deck
             List<Entity> deck = CreateSampleDeck();
-            
-            // Add cards to player's deck
+    
             foreach (var card in deck)
             {
                 _cardSystem.AddCardToDeck(card);
             }
-            
+    
             // Shuffle the deck
             _cardSystem.ShuffleDeck();
-            
+    
             Debug.Log("New game started successfully!");
             StartBattle("medium");
         }
         
-        /// <summary>
-        /// Create a sample deck
+         /// <summary>
+        /// Create a random deck for the player
+        /// Modified to use LoadCardData for randomized deck generation each playthrough
         /// </summary>
         private List<Entity> CreateSampleDeck()
         {
-            // Try to load cards from Resources first
-            List<Entity> deck = new List<Entity>();
-            bool loadedFromResources = false;
+            Debug.Log("Creating random deck for new game...");
             
-            try
+            // Get player preference for deck theme if available (default to "balanced")
+            string deckTheme = "balanced";
+            if (PlayerPrefs.HasKey("DeckTheme"))
             {
-                string[] cardPaths = new string[]
-                {
-                    "Cards/Metal_SwordQi_Card",
-                    "Cards/Metal_Hardness_Card",
-                    "Cards/Wood_Toxin_Card",
-                    "Cards/Wood_Regeneration_Card",
-                    "Cards/Water_Ice_Card",
-                    "Cards/Fire_Burning_Card",
-                    "Cards/Earth_Solidity_Card",
-                    "Cards/Special_Rat_Card"
-                };
+                deckTheme = PlayerPrefs.GetString("DeckTheme");
+            }
+            
+            // Get player preference for deck size if available (default to 8)
+            int deckSize = 8;
+            if (PlayerPrefs.HasKey("DeckSize"))
+            {
+                deckSize = PlayerPrefs.GetInt("DeckSize");
+            }
+            
+            List<Entity> deck = this.CreateRandomStarterDeck(deckTheme, deckSize);
+            if (deck == null || deck.Count == 0)
+            {
+                Debug.LogWarning("Failed to create deck using LoadCardData, falling back to manual creation");
+                deck = new List<Entity>();
+                bool loadedFromResources = false;
                 
-                foreach (var path in cardPaths)
+                try
                 {
-                    var cardData = Resources.Load<Data.CardDataSO>(path);
-                    if (cardData)
+                    string[] cardPaths = new string[]
                     {
-                        Entity card = _scriptableObjectFactory.CreateCardFromSO(cardData);
-                        deck.Add(card);
-                        loadedFromResources = true;
+                        "Cards/Metal_SwordQi_Card",
+                        "Cards/Metal_Hardness_Card",
+                        "Cards/Wood_Toxin_Card",
+                        "Cards/Wood_Regeneration_Card",
+                        "Cards/Water_Ice_Card",
+                        "Cards/Fire_Burning_Card",
+                        "Cards/Earth_Solidity_Card",
+                        "Cards/Special_Rat_Card"
+                    };
+                    
+                    foreach (var path in cardPaths)
+                    {
+                        var cardData = Resources.Load<Data.CardDataSO>(path);
+                        if (cardData)
+                        {
+                            Entity card = _scriptableObjectFactory.CreateCardFromSO(cardData);
+                            deck.Add(card);
+                            loadedFromResources = true;
+                        }
                     }
                 }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning($"Error loading cards from resources: {e.Message}");
-                loadedFromResources = false;
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"Error loading cards from resources: {e.Message}");
+                    loadedFromResources = false;
+                }
+                
+                // If couldn't load from resources, create cards manually
+                if (!loadedFromResources || deck.Count == 0)
+                {
+                    Debug.Log("Creating cards manually...");
+                    deck = _cardFactory.CreateSampleDeck();
+                }
             }
             
-            // If couldn't load from resources, create cards manually
-            if (!loadedFromResources || deck.Count == 0)
-            {
-                Debug.Log("Creating cards manually...");
-                deck = _cardFactory.CreateSampleDeck();
-            }
-            
+            Debug.Log($"Created deck with {deck.Count} cards for new game");
             return deck;
         }
         
