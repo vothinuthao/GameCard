@@ -136,8 +136,6 @@ namespace Systems
             foreach (var card in _playZone)
             {
                 _discardPile.Add(card);
-                
-                // Update the card state
                 CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
                 if (cardInfo != null)
                 {
@@ -163,9 +161,7 @@ namespace Systems
             {
                 n--;
                 int k = random.Next(n + 1);
-                Entity temp = _deck[k];
-                _deck[k] = _deck[n];
-                _deck[n] = temp;
+                (_deck[k], _deck[n]) = (_deck[n], _deck[k]);
             }
             
             // Update all card states
