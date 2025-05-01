@@ -250,8 +250,7 @@ namespace UI
                     CardView cardView = cardGO.GetComponent<CardView>();
                     cardView.SetCard(handCards[i], i);
                     
-                    // Add click listener
-                    int index = i; // Capture index
+                    int index = i;
                     Button cardButton = cardGO.GetComponent<Button>();
                     cardButton.onClick.AddListener(() => OnHandCardClicked(index));
                     

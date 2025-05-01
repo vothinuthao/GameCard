@@ -92,10 +92,9 @@ namespace UI
             }
             else
             {
-                cardArtwork.gameObject.SetActive(false);
+                // cardArtwork.gameObject.SetActive(false);
             }
             
-            // Set frame based on rarity
             switch (cardInfo.Rarity)
             {
                 case Rarity.Common:

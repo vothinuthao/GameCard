@@ -58,7 +58,9 @@ namespace Factories
                 Rarity = cardData.rarity,
                 Cost = cardData.cost,
                 Artwork = cardData.artwork,
-                State = CardState.InDeck
+                State = CardState.InDeck,
+                Id = cardData.cardId,
+                KeyName = cardData.cardKeyName
             };
             card.AddComponent(cardInfo);
             
@@ -195,9 +197,18 @@ namespace Factories
                         spiritAnimalCard.activationConditionDescription
                     );
                     break;
-                case "element":
+                case "card_count":
                     condition = new ElementPlayedCondition(
-                        ElementType.Fire, // This would be more specific in a real implementation
+                        ElementType.None, // Doesn't consider element, just card count
+                        (int)spiritAnimalCard.conditionValue,
+                        spiritAnimalCard.activationConditionDescription
+                    );
+                    break;
+                case "element_count":
+                    ElementType elementType = ElementType.None;
+                    // Determine element type from additional parameters or name if needed
+                    condition = new ElementPlayedCondition(
+                        elementType,
                         (int)spiritAnimalCard.conditionValue,
                         spiritAnimalCard.activationConditionDescription
                     );
@@ -249,6 +260,12 @@ namespace Factories
                         true, // Below threshold
                         jokerCard.activationConditionDescription
                     );
+                    break;
+                case "element_diversity":
+                    // This would need a custom condition implementation for element diversity
+                    break;
+                case "unique_card_count":
+                    // This would need a custom condition implementation for unique cards
                     break;
                 // Add more condition types as needed
             }

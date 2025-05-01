@@ -9,6 +9,10 @@ namespace Data
     [CreateAssetMenu(fileName = "New Card", menuName = "NguhanhGame/Card Data")]
     public class CardDataSO : ScriptableObject
     {
+        [Header("Card Identification")]
+        public int cardId;
+        public string cardKeyName; 
+        
         [Header("Basic Information")]
         public string cardName;
         public string description;

@@ -15,31 +15,31 @@ namespace RunTime
     public class GameManager : Singleton<GameManager>
     {
         // ECS components
-        private EntityManager entityManager;
-        private SystemManager systemManager;
+        private EntityManager _entityManager;
+        private SystemManager _systemManager;
         
         // Game systems
-        private CardSystem cardSystem;
-        private ElementInteractionSystem elementInteractionSystem;
-        private BattleSystem battleSystem;
-        private SupportCardSystem supportCardSystem;
+        private CardSystem _cardSystem;
+        private ElementInteractionSystem _elementInteractionSystem;
+        private BattleSystem _battleSystem;
+        private SupportCardSystem _supportCardSystem;
         
-        // Factories
-        private CardFactory cardFactory;
-        private ScriptableObjectFactory scriptableObjectFactory;
+        // Factories 
+        private CardFactory _cardFactory;
+        private ScriptableObjectFactory _scriptableObjectFactory;
         
         // Game state
-        private Entity playerEntity;
-        private Entity enemyEntity;
-        private bool isBattleActive = false;
+        private Entity _playerEntity;
+        private Entity _enemyEntity;
+        private bool _isBattleActive = false;
         
         // Current season and environment
-        private Season currentSeason = Season.Spring;
+        private Season _currentSeason = Season.Spring;
         
         // Player stats
-        private int playerHealth = 50;
-        private int maxPlayerHealth = 50;
-        private int playerGold = 0;
+        private int _playerHealth = 50;
+        private int _maxPlayerHealth = 50;
+        private int _playerGold = 0;
         
         [Header("References")]
         [SerializeField] private GameObject battleScreen;
@@ -60,27 +60,27 @@ namespace RunTime
             Debug.Log("Initializing game systems...");
             
             // Create ECS components
-            entityManager = new EntityManager();
-            systemManager = new SystemManager();
+            _entityManager = new EntityManager();
+            _systemManager = new SystemManager();
             
             // Create game systems
-            cardSystem = new CardSystem(entityManager);
-            elementInteractionSystem = new ElementInteractionSystem(entityManager);
-            supportCardSystem = new SupportCardSystem(entityManager);
-            battleSystem = new BattleSystem(entityManager, elementInteractionSystem, cardSystem);
+            _cardSystem = new CardSystem(_entityManager);
+            _elementInteractionSystem = new ElementInteractionSystem(_entityManager);
+            _supportCardSystem = new SupportCardSystem(_entityManager);
+            _battleSystem = new BattleSystem(_entityManager, _elementInteractionSystem, _cardSystem);
             
             // Add systems to system manager
-            systemManager.AddSystem(cardSystem);
-            systemManager.AddSystem(elementInteractionSystem);
-            systemManager.AddSystem(supportCardSystem);
-            systemManager.AddSystem(battleSystem);
+            _systemManager.AddSystem(_cardSystem);
+            _systemManager.AddSystem(_elementInteractionSystem);
+            _systemManager.AddSystem(_supportCardSystem);
+            _systemManager.AddSystem(_battleSystem);
             
             // Create factories
-            cardFactory = new CardFactory(entityManager);
-            scriptableObjectFactory = new ScriptableObjectFactory(entityManager);
+            _cardFactory = new CardFactory(_entityManager);
+            _scriptableObjectFactory = new ScriptableObjectFactory(_entityManager);
             
             // Set initial season
-            elementInteractionSystem.SetSeason(currentSeason);
+            _elementInteractionSystem.SetSeason(_currentSeason);
             
             Debug.Log("Game systems initialized successfully!");
         }
@@ -88,13 +88,13 @@ namespace RunTime
         // Update is called once per frame
         private void Update()
         {
-            if (isBattleActive)
+            if (_isBattleActive)
             {
                 // Update all systems
-                systemManager.UpdateAllSystems(Time.deltaTime);
+                _systemManager.UpdateAllSystems(Time.deltaTime);
                 
                 // Check if battle is over
-                if (battleSystem.IsBattleOver())
+                if (_battleSystem.IsBattleOver())
                 {
                     EndBattle();
                 }
@@ -109,11 +109,11 @@ namespace RunTime
             Debug.Log("Starting new game...");
             
             // Reset player stats
-            playerHealth = maxPlayerHealth;
-            playerGold = 0;
+            _playerHealth = _maxPlayerHealth;
+            _playerGold = 0;
             
             // Create player entity
-            playerEntity = CreatePlayerEntity();
+            _playerEntity = CreatePlayerEntity();
             
             // Create a sample deck
             List<Entity> deck = CreateSampleDeck();
@@ -121,15 +121,13 @@ namespace RunTime
             // Add cards to player's deck
             foreach (var card in deck)
             {
-                cardSystem.AddCardToDeck(card);
+                _cardSystem.AddCardToDeck(card);
             }
             
             // Shuffle the deck
-            cardSystem.ShuffleDeck();
+            _cardSystem.ShuffleDeck();
             
             Debug.Log("New game started successfully!");
-            
-            // Automatically start a battle
             StartBattle("medium");
         }
         
@@ -159,9 +157,9 @@ namespace RunTime
                 foreach (var path in cardPaths)
                 {
                     var cardData = Resources.Load<Data.CardDataSO>(path);
-                    if (cardData != null)
+                    if (cardData)
                     {
-                        Entity card = scriptableObjectFactory.CreateCardFromSO(cardData);
+                        Entity card = _scriptableObjectFactory.CreateCardFromSO(cardData);
                         deck.Add(card);
                         loadedFromResources = true;
                     }
@@ -177,7 +175,7 @@ namespace RunTime
             if (!loadedFromResources || deck.Count == 0)
             {
                 Debug.Log("Creating cards manually...");
-                deck = cardFactory.CreateSampleDeck();
+                deck = _cardFactory.CreateSampleDeck();
             }
             
             return deck;
@@ -188,7 +186,7 @@ namespace RunTime
         /// </summary>
         public void StartBattle(string enemyType)
         {
-            if (playerEntity == null)
+            if (_playerEntity == null)
             {
                 Debug.LogError("Cannot start battle - player entity not created!");
                 return;
@@ -197,11 +195,11 @@ namespace RunTime
             Debug.Log($"Starting battle with enemy: {enemyType}");
             
             // Create enemy entity
-            enemyEntity = CreateEnemyEntity(enemyType);
+            _enemyEntity = CreateEnemyEntity(enemyType);
             
             // Initialize battle
-            battleSystem.InitializeBattle(playerEntity, enemyEntity);
-            isBattleActive = true;
+            _battleSystem.InitializeBattle(_playerEntity, _enemyEntity);
+            _isBattleActive = true;
             
             // Show battle screen
             if (battleScreen != null)
@@ -217,20 +215,20 @@ namespace RunTime
         /// </summary>
         private void EndBattle()
         {
-            isBattleActive = false;
+            _isBattleActive = false;
             
             // Get winner
-            Entity winner = battleSystem.GetWinner();
+            Entity winner = _battleSystem.GetWinner();
             
-            if (winner == playerEntity)
+            if (winner == _playerEntity)
             {
                 Debug.Log("Player won the battle!");
                 
                 // Add rewards
-                playerGold += 25;
+                _playerGold += 25;
                 
                 // Heal player a bit
-                StatsComponent playerStats = playerEntity.GetComponent<StatsComponent>();
+                StatsComponent playerStats = _playerEntity.GetComponent<StatsComponent>();
                 if (playerStats != null)
                 {
                     playerStats.Health = Mathf.Min(playerStats.Health + 5, playerStats.MaxHealth);
@@ -251,15 +249,15 @@ namespace RunTime
         /// </summary>
         private Entity CreatePlayerEntity()
         {
-            Entity player = entityManager.CreateEntity();
+            Entity player = _entityManager.CreateEntity();
             
             // Add stats component
             StatsComponent stats = new StatsComponent
             {
                 Attack = 5,
                 Defense = 5,
-                Health = playerHealth,
-                MaxHealth = maxPlayerHealth,
+                Health = _playerHealth,
+                MaxHealth = _maxPlayerHealth,
                 Speed = 5
             };
             player.AddComponent(stats);
@@ -272,7 +270,7 @@ namespace RunTime
         /// </summary>
         private Entity CreateEnemyEntity(string enemyType)
         {
-            Entity enemy = entityManager.CreateEntity();
+            Entity enemy = _entityManager.CreateEntity();
             
             // Add stats component
             StatsComponent stats = new StatsComponent();
@@ -351,13 +349,13 @@ namespace RunTime
         /// </summary>
         public void PlayCard(int cardIndex)
         {
-            if (!isBattleActive)
+            if (!_isBattleActive)
             {
                 Debug.LogWarning("Cannot play card - no active battle!");
                 return;
             }
             
-            List<Entity> hand = cardSystem.GetHand();
+            List<Entity> hand = _cardSystem.GetHand();
             
             if (cardIndex < 0 || cardIndex >= hand.Count)
             {
@@ -366,7 +364,7 @@ namespace RunTime
             }
             
             Entity card = hand[cardIndex];
-            battleSystem.PlayCard(card, enemyEntity);
+            _battleSystem.PlayCard(card, _enemyEntity);
             
             Debug.Log($"Played card at index {cardIndex}");
         }
@@ -376,13 +374,13 @@ namespace RunTime
         /// </summary>
         public void PlayAsSupport(int cardIndex)
         {
-            if (!isBattleActive)
+            if (!_isBattleActive)
             {
                 Debug.LogWarning("Cannot play support card - no active battle!");
                 return;
             }
             
-            List<Entity> hand = cardSystem.GetHand();
+            List<Entity> hand = _cardSystem.GetHand();
             
             if (cardIndex < 0 || cardIndex >= hand.Count)
             {
@@ -394,7 +392,7 @@ namespace RunTime
             Entity card = hand[cardIndex];
             if (card.HasComponent<SupportCardComponent>())
             {
-                cardSystem.PlayAsSupport(card);
+                _cardSystem.PlayAsSupport(card);
                 Debug.Log($"Played card at index {cardIndex} as support");
             }
             else
@@ -408,20 +406,20 @@ namespace RunTime
         /// </summary>
         public void EndTurn()
         {
-            if (!isBattleActive)
+            if (!_isBattleActive)
             {
                 Debug.LogWarning("Cannot end turn - no active battle!");
                 return;
             }
             
-            battleSystem.StartNewTurn();
+            _battleSystem.StartNewTurn();
             Debug.Log("Player turn ended");
             
             // Simple enemy AI
             PerformEnemyTurn();
             
             // Start new player turn
-            battleSystem.StartNewTurn();
+            _battleSystem.StartNewTurn();
         }
         
         /// <summary>
@@ -429,11 +427,11 @@ namespace RunTime
         /// </summary>
         private void PerformEnemyTurn()
         {
-            if (playerEntity == null || enemyEntity == null)
+            if (_playerEntity == null || _enemyEntity == null)
                 return;
             
-            StatsComponent playerStats = playerEntity.GetComponent<StatsComponent>();
-            StatsComponent enemyStats = enemyEntity.GetComponent<StatsComponent>();
+            StatsComponent playerStats = _playerEntity.GetComponent<StatsComponent>();
+            StatsComponent enemyStats = _enemyEntity.GetComponent<StatsComponent>();
             
             if (playerStats == null || enemyStats == null)
                 return;
@@ -469,25 +467,25 @@ namespace RunTime
         /// </summary>
         public void GetGameState()
         {
-            if (playerEntity == null)
+            if (_playerEntity == null)
             {
                 Debug.Log("No active game");
                 return;
             }
             
-            StatsComponent playerStats = playerEntity.GetComponent<StatsComponent>();
+            StatsComponent playerStats = _playerEntity.GetComponent<StatsComponent>();
             
             Debug.Log($"Player Health: {playerStats.Health}/{playerStats.MaxHealth}");
-            Debug.Log($"Player Gold: {playerGold}");
-            Debug.Log($"Cards in Deck: {cardSystem.GetDeck().Count}");
-            Debug.Log($"Cards in Hand: {cardSystem.GetHand().Count}");
-            Debug.Log($"Cards in Discard: {cardSystem.GetDiscardPile().Count}");
-            Debug.Log($"Support Cards: {cardSystem.GetSupportZone().Count}");
+            Debug.Log($"Player Gold: {_playerGold}");
+            Debug.Log($"Cards in Deck: {_cardSystem.GetDeck().Count}");
+            Debug.Log($"Cards in Hand: {_cardSystem.GetHand().Count}");
+            Debug.Log($"Cards in Discard: {_cardSystem.GetDiscardPile().Count}");
+            Debug.Log($"Support Cards: {_cardSystem.GetSupportZone().Count}");
             
-            if (isBattleActive && enemyEntity != null)
+            if (_isBattleActive && _enemyEntity != null)
             {
-                StatsComponent enemyStats = enemyEntity.GetComponent<StatsComponent>();
-                ElementComponent enemyElement = enemyEntity.GetComponent<ElementComponent>();
+                StatsComponent enemyStats = _enemyEntity.GetComponent<StatsComponent>();
+                ElementComponent enemyElement = _enemyEntity.GetComponent<ElementComponent>();
                 
                 Debug.Log($"Enemy Health: {enemyStats.Health}/{enemyStats.MaxHealth}");
                 Debug.Log($"Enemy Element: {enemyElement?.GetElementName() ?? "None"}");
@@ -499,19 +497,19 @@ namespace RunTime
         /// </summary>
         public void SetSeason(Season season)
         {
-            currentSeason = season;
-            elementInteractionSystem.SetSeason(season);
+            _currentSeason = season;
+            _elementInteractionSystem.SetSeason(season);
             Debug.Log($"Season changed to: {season}");
         }
         
         // Getters for systems and entities
-        public EntityManager GetEntityManager() => entityManager;
-        public CardSystem GetCardSystem() => cardSystem;
-        public BattleSystem GetBattleSystem() => battleSystem;
-        public ElementInteractionSystem GetElementInteractionSystem() => elementInteractionSystem;
-        public SupportCardSystem GetSupportCardSystem() => supportCardSystem;
-        public Entity GetPlayerEntity() => playerEntity;
-        public Entity GetEnemyEntity() => enemyEntity;
-        public Season GetCurrentSeason() => currentSeason;
+        public EntityManager GetEntityManager() => _entityManager;
+        public CardSystem GetCardSystem() => _cardSystem;
+        public BattleSystem GetBattleSystem() => _battleSystem;
+        public ElementInteractionSystem GetElementInteractionSystem() => _elementInteractionSystem;
+        public SupportCardSystem GetSupportCardSystem() => _supportCardSystem;
+        public Entity GetPlayerEntity() => _playerEntity;
+        public Entity GetEnemyEntity() => _enemyEntity;
+        public Season GetCurrentSeason() => _currentSeason;
     }
 }
