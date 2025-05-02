@@ -1,5 +1,4 @@
-﻿// EnumDefinitions.cs
-namespace Core.Utils
+﻿namespace Core.Utils
 {
     /// <summary>
     /// Element types (Ngũ Hành)
@@ -38,68 +37,57 @@ namespace Core.Utils
     }
     
     /// <summary>
-    /// NapAm types for Metal element
+    /// Support card types
     /// </summary>
-    public enum MetalNapAm
+    public enum SupportCardType
     {
-        SwordQi,        // Kiếm Khí
-        Hardness,       // Cương Nghị
-        Purity,         // Thanh Tịnh
-        Reflection,     // Phản Chiếu
-        Spirit,         // Linh Khí
-        Calmness        // Trầm Tĩnh
+        DivineBeast,
+        Monster,
+        SpiritAnimal,
+        Artifact,
+        Talisman,
+        DivineWeapon
     }
     
     /// <summary>
-    /// NapAm types for Wood element
+    /// Activation condition types
     /// </summary>
-    public enum WoodNapAm
+    public enum ActivationConditionType
     {
-        Growth,         // Sinh Trưởng
-        Flexibility,    // Linh Hoạt
-        Symbiosis,      // Cộng Sinh
-        Regeneration,   // Tái Sinh
-        Toxin,          // Độc Tố
-        Shelter         // Che Chắn
+        None,
+        HealthPercent,
+        ElementType,
+        ElementCount,
+        AllElements,
+        AllElementsPlayed,
+        Threshold,
+        HandSize,
+        EffectTargeted,
+        DamageDealt,
+        ElementCombo,
+        TurnStart,
+        TurnEnd
     }
     
     /// <summary>
-    /// NapAm types for Water element
+    /// Effect types
     /// </summary>
-    public enum WaterNapAm
+    public enum EffectType
     {
-        Adaptation,     // Thích Nghi
-        Ice,            // Băng Giá
-        Flow,           // Dòng Chảy
-        Mist,           // Sương Mù
-        Reflection,     // Phản Ánh
-        Purification    // Thanh Tẩy
-    }
-    
-    /// <summary>
-    /// NapAm types for Fire element
-    /// </summary>
-    public enum FireNapAm
-    {
-        Burning,        // Thiêu Đốt
-        Explosion,      // Bùng Nổ
-        Passion,        // Nhiệt Huyết
-        Light,          // Ánh Sáng
-        Forging,        // Rèn Luyện
-        Incineration    // Thiêu Rụi
-    }
-    
-    /// <summary>
-    /// NapAm types for Earth element
-    /// </summary>
-    public enum EarthNapAm
-    {
-        Solidity,       // Kiên Cố
-        Gravity,        // Trọng Lực
-        Fertility,      // Màu Mỡ
-        Volcano,        // Núi Lửa
-        Crystal,        // Tinh Thể
-        Terra           // Đại Địa
+        None,
+        StatBuff,
+        DamageOverTime,
+        LifeSteal,
+        Reflection,
+        Harmony,
+        Replay,
+        ElementUnity,
+        ElementReversal,
+        Lightning,
+        Thunder,
+        Flood,
+        Charm,
+        Complex
     }
     
     /// <summary>

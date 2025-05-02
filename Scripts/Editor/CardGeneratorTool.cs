@@ -783,7 +783,6 @@ namespace Editor
             card.health = _cardHealth;
             card.speed = _cardSpeed;
             card.elementType = _cardElement;
-            card.napAmIndex = _napAmIndex;
             
             // Set Divine Beast specific properties
             card.effectDescription = _effectDescription;
@@ -814,7 +813,6 @@ namespace Editor
             card.health = _cardHealth;
             card.speed = _cardSpeed;
             card.elementType = _cardElement;
-            card.napAmIndex = _napAmIndex;
             
             // Set Monster specific properties
             card.effects = new MonsterCardDataSO.EffectData[1];
@@ -850,7 +848,6 @@ namespace Editor
             card.health = _cardHealth;
             card.speed = _cardSpeed;
             card.elementType = _cardElement;
-            card.napAmIndex = _napAmIndex;
             
             // Set Spirit Animal specific properties
             card.zodiacAnimal = _zodiacAnimal;

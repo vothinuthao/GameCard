@@ -1,5 +1,4 @@
-﻿using System;
-using Core.Utils;
+﻿using Core.Utils;
 using UnityEngine;
 
 namespace Data
@@ -7,7 +6,7 @@ namespace Data
     /// <summary>
     /// Scriptable object for support card data configuration
     /// </summary>
-    [CreateAssetMenu(fileName = "NewSupportCard", menuName = "Ngũ Hành/Support Card")]
+    [CreateAssetMenu(fileName = "New Support Card", menuName = "NguhanhGame/Support Card Data")]
     public class SupportCardDataSO : CardDataSO
     {
         [Header("Support Card Settings")]
@@ -54,59 +53,5 @@ namespace Data
         [Tooltip("Detailed activation condition description")]
         [TextArea(3, 10)]
         public string activationConditionDescription;
-    }
-    
-    /// <summary>
-    /// Enum for support card types
-    /// </summary>
-    public enum SupportCardType
-    {
-        DivineBeast,
-        Monster,
-        SpiritAnimal,
-        Artifact,
-        Talisman,
-        DivineWeapon
-    }
-    
-    /// <summary>
-    /// Enum for activation condition types
-    /// </summary>
-    public enum ActivationConditionType
-    {
-        None,
-        HealthPercent,
-        ElementType,
-        ElementCount,
-        AllElements,
-        AllElementsPlayed,
-        Threshold,
-        HandSize,
-        EffectTargeted,
-        DamageDealt,
-        ElementCombo,
-        TurnStart,
-        TurnEnd
-    }
-    
-    /// <summary>
-    /// Enum for effect types
-    /// </summary>
-    public enum EffectType
-    {
-        None,
-        StatBuff,
-        DamageOverTime,
-        LifeSteal,
-        Reflection,
-        Harmony,
-        Replay,
-        ElementUnity,
-        ElementReversal,
-        Lightning,
-        Thunder,
-        Flood,
-        Charm,
-        Complex
     }
 }

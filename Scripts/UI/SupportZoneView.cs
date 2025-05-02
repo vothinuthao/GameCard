@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using Components;
 using Core;
-using RunTime;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -29,12 +28,22 @@ namespace NguhanhGame.UI
         private List<CardView> _supportCardViews = new List<CardView>();
         private List<Entity> _supportCards = new List<Entity>();
         
-        // Start is called before the first frame update
+        // Reference to BattleController
+        private BattleController _battleController;
+        
+        /// <summary>
+        /// Set reference to BattleController
+        /// </summary>
+        public void SetBattleController(BattleController battleController)
+        {
+            _battleController = battleController;
+        }
+        
+        /// <summary>
+        /// Initialize with defaults
+        /// </summary>
         private void Start()
         {
-            // Initialize support zone
-            UpdateUI();
-            
             // Set title
             if (supportZoneTitle != null)
             {
@@ -48,82 +57,35 @@ namespace NguhanhGame.UI
             }
         }
         
-        // Update is called once per frame
-        private void Update()
-        {
-            // Update UI periodically
-            UpdateUI();
-        }
-        
         /// <summary>
-        /// Update the UI to reflect current support cards
+        /// Update support cards from specified list
         /// </summary>
-        private void UpdateUI()
+        public void SetSupportCards(List<Entity> supportCards)
         {
-            if (GameManager.Instance == null || supportCardContainer == null) return;
+            if (supportCards == null) return;
             
-            // Get current support cards from card system
-            var cardSystem = GameManager.Instance.GetCardSystem();
-            if (cardSystem == null) return;
+            _supportCards = new List<Entity>(supportCards);
+            RefreshSupportCardViews();
             
-            var currentSupportCards = cardSystem.GetSupportZone();
-            
-            // Check if support cards have changed
-            bool cardsChanged = currentSupportCards.Count != _supportCards.Count;
-            if (!cardsChanged)
+            // Update title
+            if (supportZoneTitle != null)
             {
-                for (int i = 0; i < currentSupportCards.Count; i++)
-                {
-                    if (i >= _supportCards.Count || currentSupportCards[i] != _supportCards[i])
-                    {
-                        cardsChanged = true;
-                        break;
-                    }
-                }
-            }
-            
-            // Update support cards if changed
-            if (cardsChanged)
-            {
-                _supportCards = new List<Entity>(currentSupportCards);
-                RefreshSupportCardViews();
-                
-                // Update title
-                if (supportZoneTitle != null)
-                {
-                    supportZoneTitle.text = "Support Cards (" + _supportCards.Count + "/" + maxSupportCards + ")";
-                }
-            }
-            
-            // Update activation status
-            for (int i = 0; i < _supportCardViews.Count; i++)
-            {
-                if (i < _supportCards.Count)
-                {
-                    Entity card = _supportCards[i];
-                    SupportCardComponent supportComponent = card.GetComponent<SupportCardComponent>();
-                    
-                    if (supportComponent != null)
-                    {
-                        // Update cooldown display
-                        _supportCardViews[i].UpdateCooldown(supportComponent.CurrentCooldown);
-                        
-                        // Update activation status
-                        _supportCardViews[i].UpdateActivationStatus(supportComponent.IsActive);
-                    }
-                }
+                supportZoneTitle.text = "Support Cards (" + _supportCards.Count + "/" + maxSupportCards + ")";
             }
         }
         
         /// <summary>
-        /// Refresh support card views
+        /// Refresh the UI elements for support cards
         /// </summary>
         private void RefreshSupportCardViews()
         {
             // Clear existing views
             foreach (var cardView in _supportCardViews)
             {
-                Destroy(cardView.gameObject);
+                if (cardView != null && cardView.gameObject != null)
+                {
+                    Destroy(cardView.gameObject);
+                }
             }
             _supportCardViews.Clear();
             
@@ -154,6 +116,30 @@ namespace NguhanhGame.UI
                     }
                     
                     _supportCardViews.Add(cardView);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Update the view (called from BattleController)
+        /// </summary>
+        public void UpdateSupportCardStatus()
+        {
+            for (int i = 0; i < _supportCardViews.Count; i++)
+            {
+                if (i < _supportCards.Count)
+                {
+                    Entity card = _supportCards[i];
+                    SupportCardComponent supportComponent = card.GetComponent<SupportCardComponent>();
+                    
+                    if (supportComponent != null && _supportCardViews[i] != null)
+                    {
+                        // Update cooldown display
+                        _supportCardViews[i].UpdateCooldown(supportComponent.CurrentCooldown);
+                        
+                        // Update activation status
+                        _supportCardViews[i].UpdateActivationStatus(supportComponent.IsActive);
+                    }
                 }
             }
         }
@@ -228,6 +214,14 @@ namespace NguhanhGame.UI
             {
                 supportZoneInfoPanel.SetActive(false);
             }
+        }
+        
+        /// <summary>
+        /// Check if a support card can be played
+        /// </summary>
+        public bool CanPlaySupportCard()
+        {
+            return _supportCards.Count < maxSupportCards;
         }
     }
 }

@@ -8,20 +8,22 @@ using UnityEngine;
 namespace Factories
 {
     /// <summary>
-    /// Factory for creating entities from scriptable objects
-    /// Uses PureSingleton pattern
+    /// Factory for creating entities from ScriptableObjects
+    /// Implements the Singleton pattern
     /// </summary>
     public class ScriptableObjectFactory : PureSingleton<ScriptableObjectFactory>
     {
-        // Entity manager reference
+        // Reference to EntityManager
         private EntityManager _entityManager;
         
-        // Entity cache to avoid recreating the same entities
-        private Dictionary<string, Entity> _entityCache = new Dictionary<string, Entity>();
+        // Cache for created support card effects
+        private Dictionary<string, Effect> _effectCache = new Dictionary<string, Effect>();
+        
+        // Cache for created activation conditions
+        private Dictionary<string, ActivationCondition> _conditionCache = new Dictionary<string, ActivationCondition>();
         
         /// <summary>
-        /// Initialize the factory with an entity manager
-        /// REQUIRED: Must be called before using any factory methods
+        /// Initialize the factory with entity manager
         /// </summary>
         public bool Initialize(EntityManager entityManager)
         {
@@ -32,432 +34,600 @@ namespace Factories
             }
             
             _entityManager = entityManager;
-            Debug.Log("[ScriptableObjectFactory] Initialized successfully");
             
+            Debug.Log("[ScriptableObjectFactory] Initialized successfully");
             return base.Initialize();
         }
         
         /// <summary>
-        /// Clear entity cache to free memory
-        /// </summary>
-        public void ClearCache()
-        {
-            _entityCache.Clear();
-            Debug.Log("[ScriptableObjectFactory] Entity cache cleared");
-        }
-        
-        /// <summary>
-        /// Create an entity from a card scriptable object
+        /// Create entity from ScriptableObject
         /// </summary>
         public Entity CreateCardFromSO(CardDataSO cardData)
         {
-            // Ensure initialization
-            EnsureInitialized(false);
-            
             if (cardData == null)
             {
-                Debug.LogError("[ScriptableObjectFactory] Cannot create card from null CardDataSO!");
+                Debug.LogError("[ScriptableObjectFactory] Cannot create card - CardDataSO is null!");
                 return null;
             }
             
-            // Check if we already have this card in cache
-            string cacheKey = !string.IsNullOrEmpty(cardData.cardKeyName) ? 
-                cardData.cardKeyName : "card_" + cardData.cardId;
-                
-            if (_entityCache.TryGetValue(cacheKey, out Entity cachedEntity))
+            // Check if entity manager is initialized
+            if (_entityManager == null)
             {
-                // Return a clone of the cached entity to avoid modifying the cached version
-                return CloneEntity(cachedEntity);
+                Debug.LogError("[ScriptableObjectFactory] Cannot create card - EntityManager is not initialized!");
+                return null;
             }
             
-            // Create new entity based on card type
-            Entity entity;
-            
-            switch (cardData)
+            // Create entity based on card type
+            switch (cardData.cardType)
             {
-                case ElementalCardDataSO elementalCard:
-                    entity = CreateElementalCardFromSO(elementalCard);
-                    break;
-                case DivineBeastCardDataSO divineBeastCard:
-                    entity = CreateDivineBeastCardFromSO(divineBeastCard);
-                    break;
-                case MonsterCardDataSO monsterCard:
-                    entity = CreateMonsterCardFromSO(monsterCard);
-                    break;
-                case SpiritAnimalCardDataSO spiritAnimalCard:
-                    entity = CreateSpiritAnimalCardFromSO(spiritAnimalCard);
-                    break;
-                case JokerCardDataSO jokerCard:
-                    entity = CreateJokerCardFromSO(jokerCard);
-                    break;
+                case CardType.ElementalCard:
+                    return CreateElementalCard(cardData as ElementalCardDataSO ?? cardData);
+                case CardType.DivineBeast:
+                case CardType.Monster:
+                case CardType.SpiritAnimal:
+                case CardType.Joker:
+                    if (cardData is SupportCardDataSO supportCardData)
+                    {
+                        return CreateSupportCard(supportCardData);
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[ScriptableObjectFactory] Expected SupportCardDataSO for {cardData.cardType} but got {cardData.GetType()}");
+                        return CreateElementalCard(cardData); // Fallback
+                    }
                 default:
-                    entity = CreateBasicCardFromSO(cardData);
-                    break;
+                    Debug.LogWarning($"[ScriptableObjectFactory] Unknown card type: {cardData.cardType}");
+                    return CreateElementalCard(cardData); // Fallback
             }
-            
-            // Cache the entity
-            if (entity != null && !string.IsNullOrEmpty(cacheKey))
-            {
-                _entityCache[cacheKey] = entity;
-            }
-            
-            // Return a clone to avoid modifying the cached version
-            return CloneEntity(entity);
         }
         
         /// <summary>
-        /// Create a basic card entity from a card scriptable object
+        /// Create an elemental card entity
         /// </summary>
-        private Entity CreateBasicCardFromSO(CardDataSO cardData)
+        private Entity CreateElementalCard(ElementalCardDataSO cardData)
         {
+            // Create a basic entity
             Entity card = _entityManager.CreateEntity();
             
             // Add CardInfoComponent
             CardInfoComponent cardInfo = new CardInfoComponent
             {
+                Id = cardData.cardId,
+                KeyName = cardData.cardKeyName,
                 Name = cardData.cardName,
                 Description = cardData.description,
                 Type = cardData.cardType,
                 Rarity = cardData.rarity,
                 Cost = cardData.cost,
                 Artwork = cardData.artwork,
-                State = CardState.InDeck,
-                Id = cardData.cardId,
-                KeyName = cardData.cardKeyName
+                State = CardState.InDeck
             };
             card.AddComponent(cardInfo);
             
+            // Add ElementComponent
+            ElementComponent element = new ElementComponent
+            {
+                Element = cardData.elementType
+            };
+            card.AddComponent(element);
+            
+            // Add NapAmComponent
+            string napAmName = GetNapAmName(cardData.elementType, cardData.napAmIndex);
+            NapAmComponent napAm = new NapAmComponent(cardData.elementType, cardData.napAmIndex);
+            card.AddComponent(napAm);
+            
             // Add StatsComponent
-            StatsComponent stats = new StatsComponent(cardData.attack, cardData.defense, cardData.health, cardData.speed);
+            StatsComponent stats = new StatsComponent
+            {
+                Attack = cardData.attack,
+                Defense = cardData.defense,
+                Health = cardData.health,
+                MaxHealth = cardData.health,
+                Speed = cardData.speed
+            };
             card.AddComponent(stats);
             
             return card;
         }
         
         /// <summary>
-        /// Create an elemental card entity from an elemental card scriptable object
+        /// Create a support card entity
         /// </summary>
-        private Entity CreateElementalCardFromSO(CardDataSO elementalCard)
+        private Entity CreateSupportCard(SupportCardDataSO cardData)
         {
-            // Create basic card first
-            Entity card = CreateBasicCardFromSO(elementalCard);
+            // Create a basic entity
+            Entity card = _entityManager.CreateEntity();
+            
+            // Add CardInfoComponent
+            CardInfoComponent cardInfo = new CardInfoComponent
+            {
+                Id = cardData.cardId,
+                KeyName = cardData.cardKeyName,
+                Name = cardData.cardName,
+                Description = cardData.description,
+                Type = cardData.cardType,
+                Rarity = cardData.rarity,
+                Cost = cardData.cost,
+                Artwork = cardData.artwork,
+                State = CardState.InDeck
+            };
+            card.AddComponent(cardInfo);
             
             // Add ElementComponent
             ElementComponent element = new ElementComponent
             {
-                Element = elementalCard.elementType
+                Element = cardData.elementType
             };
             card.AddComponent(element);
             
-            // Add NapAmComponent
-            NapAmComponent napAm = new NapAmComponent(elementalCard.elementType, elementalCard.napAmIndex);
-            card.AddComponent(napAm);
-            
-            return card;
-        }
-        
-        /// <summary>
-        /// Create a divine beast card entity from a divine beast card scriptable object
-        /// </summary>
-        private Entity CreateDivineBeastCardFromSO(DivineBeastCardDataSO divineBeastCard)
-        {
-            Entity card = CreateElementalCardFromSO(divineBeastCard);
-            
-            // Add EffectComponent
-            EffectComponent effectComponent = new EffectComponent();
-            
-            // Create effect based on parameters
-            StatBuffEffect effect = new StatBuffEffect(
-                divineBeastCard.cardName + " Effect",
-                divineBeastCard.effectDescription,
-                divineBeastCard.effectDuration,
-                divineBeastCard.effectTargetStat,
-                divineBeastCard.effectValue
-            );
-            
-            effectComponent.AddEffect(effect);
-            card.AddComponent(effectComponent);
-            
-            return card;
-        }
-        
-        /// <summary>
-        /// Create a monster card entity from a monster card scriptable object
-        /// </summary>
-        private Entity CreateMonsterCardFromSO(MonsterCardDataSO monsterCard)
-        {
-            Entity card = CreateElementalCardFromSO(monsterCard);
-            
-            if (monsterCard.effects == null || monsterCard.effects.Length == 0)
-                return card;
-                
-            EffectComponent effectComponent = new EffectComponent();
-            
-            // Add each effect
-            foreach (var effectData in monsterCard.effects)
+            // Add StatsComponent (for display purposes)
+            StatsComponent stats = new StatsComponent
             {
-                // Create effect based on type
-                Effect effect = null;
-                
-                switch (effectData.effectType.ToLower())
-                {
-                    case "damage":
-                    case "dot":
-                        effect = new DotEffect(
-                            effectData.effectName,
-                            effectData.effectDescription,
-                            effectData.effectDuration,
-                            (int)effectData.effectValue
-                        );
-                        break;
-                    case "buff":
-                    case "debuff":
-                        effect = new StatBuffEffect(
-                            effectData.effectName,
-                            effectData.effectDescription,
-                            effectData.effectDuration,
-                            "attack", // This would be more specific in a real implementation
-                            effectData.effectValue
-                        );
-                        break;
-                    // Add more effect types as needed
-                }
-                
-                if (effect != null)
-                {
-                    effectComponent.AddEffect(effect);
-                }
-            }
-            
-            card.AddComponent(effectComponent);
-            
-            return card;
-        }
-        
-        /// <summary>
-        /// Create a spirit animal card entity from a spirit animal card scriptable object
-        /// </summary>
-        private Entity CreateSpiritAnimalCardFromSO(SpiritAnimalCardDataSO spiritAnimalCard)
-        {
-            // Create elemental card first
-            Entity card = CreateElementalCardFromSO(spiritAnimalCard);
-            
-            // Create effect
-            StatBuffEffect effect = new StatBuffEffect(
-                spiritAnimalCard.cardName + " Support",
-                spiritAnimalCard.supportEffectDescription,
-                -1, // Persistent effects are usually permanent
-                "attack", // This would be more specific in a real implementation
-                1.0f // Default value
-            );
+                Attack = cardData.attack,
+                Defense = cardData.defense,
+                Health = cardData.health,
+                MaxHealth = cardData.health,
+                Speed = cardData.speed
+            };
+            card.AddComponent(stats);
             
             // Create activation condition
-            ActivationCondition condition = null;
+            ActivationCondition condition = CreateActivationCondition(cardData);
             
-            if (!string.IsNullOrEmpty(spiritAnimalCard.conditionType))
-            {
-                switch (spiritAnimalCard.conditionType.ToLower())
-                {
-                    case "health":
-                        condition = new HealthPercentCondition(
-                            spiritAnimalCard.conditionValue,
-                            true, // Below threshold
-                            spiritAnimalCard.activationConditionDescription
-                        );
-                        break;
-                    case "card_count":
-                        condition = new ElementPlayedCondition(
-                            ElementType.None, // Doesn't consider element, just card count
-                            (int)spiritAnimalCard.conditionValue,
-                            spiritAnimalCard.activationConditionDescription
-                        );
-                        break;
-                    case "element_count":
-                        ElementType elementType = ElementType.None;
-                        // Determine element type from additional parameters or name if needed
-                        condition = new ElementPlayedCondition(
-                            elementType,
-                            (int)spiritAnimalCard.conditionValue,
-                            spiritAnimalCard.activationConditionDescription
-                        );
-                        break;
-                    // Add more condition types as needed
-                }
-            }
+            // Create effect
+            Effect effect = CreateEffect(cardData);
             
             // Add SupportCardComponent
             SupportCardComponent supportComponent = new SupportCardComponent
             {
-                ActivationType = spiritAnimalCard.activationType,
-                Effect = effect,
+                ActivationType = cardData.activationType,
                 Condition = condition,
-                CooldownTime = 0, // No cooldown for spirit animals
+                Effect = effect,
+                CooldownTime = cardData.cooldownTime,
                 CurrentCooldown = 0,
                 IsActive = false
             };
-            
             card.AddComponent(supportComponent);
             
             return card;
         }
         
         /// <summary>
-        /// Create a joker card entity from a joker card scriptable object
+        /// Create activation condition from data
         /// </summary>
-        private Entity CreateJokerCardFromSO(JokerCardDataSO jokerCard)
+        private ActivationCondition CreateActivationCondition(SupportCardDataSO data)
         {
-            // Create basic card first
-            Entity card = CreateBasicCardFromSO(jokerCard);
+            // Get activation condition description
+            string description = !string.IsNullOrEmpty(data.activationConditionDescription) 
+                ? data.activationConditionDescription 
+                : $"When {data.conditionType} condition is met";
             
-            // Create effect
-            Effect effect = new StatBuffEffect(
-                jokerCard.cardName + " Effect",
-                jokerCard.effectDescription,
-                -1, // Joker effects are usually transformative and permanent while active
-                "all", // Joker cards often affect multiple stats
-                1.0f // Default value
-            );
+            // Cache key
+            string cacheKey = $"{data.conditionType}_{data.conditionParameter}_{data.conditionValue}";
             
-            // Create activation condition
-            ActivationCondition condition = null;
-            
-            if (!string.IsNullOrEmpty(jokerCard.conditionType))
+            // Return from cache if exists
+            if (_conditionCache.TryGetValue(cacheKey, out var cachedCondition))
             {
-                switch (jokerCard.conditionType.ToLower())
-                {
-                    case "health":
-                        condition = new HealthPercentCondition(
-                            jokerCard.conditionValue,
-                            true, // Below threshold
-                            jokerCard.activationConditionDescription
-                        );
-                        break;
-                    case "element_diversity":
-                        // This would need a custom condition implementation for element diversity
-                        break;
-                    case "unique_card_count":
-                        // This would need a custom condition implementation for unique cards
-                        break;
-                    // Add more condition types as needed
-                }
+                return cachedCondition;
             }
             
-            // Add SupportCardComponent
-            SupportCardComponent supportComponent = new SupportCardComponent
+            // Create condition based on type
+            ActivationCondition condition = null;
+            
+            switch (data.conditionType)
             {
-                ActivationType = jokerCard.activationType,
-                Effect = effect,
-                Condition = condition,
-                CooldownTime = jokerCard.cooldownTime,
-                CurrentCooldown = 0,
-                IsActive = false
-            };
+                case ActivationConditionType.HealthPercent:
+                    bool belowThreshold = data.conditionParameter == "below" || string.IsNullOrEmpty(data.conditionParameter);
+                    condition = new HealthPercentCondition(data.conditionValue, belowThreshold, description);
+                    break;
+                    
+                case ActivationConditionType.ElementType:
+                    ElementType elementType = ParseElementType(data.conditionParameter);
+                    condition = new ElementTypeCondition(elementType, description);
+                    break;
+                    
+                case ActivationConditionType.ElementCount:
+                    ElementType countElementType = ParseElementType(data.conditionParameter);
+                    condition = new ElementCountCondition(countElementType, (int)data.conditionValue, description);
+                    break;
+                    
+                case ActivationConditionType.AllElements:
+                    condition = new AllElementsInHandCondition(description);
+                    break;
+                    
+                case ActivationConditionType.AllElementsPlayed:
+                    condition = new AllElementsPlayedCondition(description);
+                    break;
+                    
+                case ActivationConditionType.Threshold:
+                    ThresholdType thresholdType = ParseThresholdType(data.conditionParameter);
+                    condition = new ThresholdCondition(data.conditionValue, thresholdType, description);
+                    break;
+                    
+                case ActivationConditionType.HandSize:
+                    bool greaterThan = data.conditionParameter == "greater" || string.IsNullOrEmpty(data.conditionParameter);
+                    condition = new HandSizeCondition((int)data.conditionValue, greaterThan, description);
+                    break;
+                    
+                case ActivationConditionType.EffectTargeted:
+                    condition = new EffectTargetedCondition(description);
+                    break;
+                    
+                case ActivationConditionType.DamageDealt:
+                    condition = new DamageDealtCondition(description);
+                    break;
+                    
+                case ActivationConditionType.ElementCombo:
+                    condition = new ElementComboCondition((int)data.conditionValue, description);
+                    break;
+                    
+                case ActivationConditionType.None:
+                default:
+                    // Return null for no condition (always active)
+                    return null;
+            }
             
-            card.AddComponent(supportComponent);
+            // Add to cache
+            if (condition != null)
+            {
+                _conditionCache[cacheKey] = condition;
+            }
             
-            return card;
+            return condition;
         }
         
         /// <summary>
-        /// Clone an entity to avoid modifying the cached version
+        /// Create effect from data
         /// </summary>
-        private Entity CloneEntity(Entity original)
+        private Effect CreateEffect(SupportCardDataSO data)
         {
-            if (original == null)
-                return null;
+            // Get effect description
+            string description = !string.IsNullOrEmpty(data.effectDescription) 
+                ? data.effectDescription 
+                : $"{data.effectType} effect";
+            
+            // Cache key
+            string cacheKey = $"{data.effectType}_{data.effectParameter}_{data.effectValue}_{data.effectValue2}_{data.effectDuration}";
+            
+            // Return from cache if exists
+            if (_effectCache.TryGetValue(cacheKey, out var cachedEffect))
+            {
+                return cachedEffect;
+            }
+            
+            // Create effect based on type
+            Effect effect = null;
+            
+            switch (data.effectType)
+            {
+                case EffectType.StatBuff:
+                    effect = new StatBuffEffect(
+                        data.cardName + " Effect",
+                        description,
+                        data.effectDuration,
+                        data.effectParameter,
+                        data.effectValue
+                    );
+                    break;
+                    
+                case EffectType.DamageOverTime:
+                    effect = new DotEffect(
+                        data.cardName + " DoT",
+                        description,
+                        data.effectDuration,
+                        (int)data.effectValue
+                    );
+                    break;
+                    
+                case EffectType.LifeSteal:
+                    effect = new LifeStealEffect(
+                        data.cardName + " Life Steal",
+                        description,
+                        data.effectValue,
+                        data.effectValue2
+                    );
+                    break;
+                    
+                case EffectType.Reflection:
+                    effect = new ReflectionEffect(
+                        data.cardName + " Reflection",
+                        description,
+                        data.effectValue,
+                        data.effectValue2
+                    );
+                    break;
+                    
+                case EffectType.Harmony:
+                    effect = new HarmonyEffect(
+                        data.cardName + " Harmony",
+                        description,
+                        data.effectValue
+                    );
+                    break;
+                    
+                case EffectType.Replay:
+                    effect = new ReplayEffect(
+                        data.cardName + " Replay",
+                        description
+                    );
+                    break;
+                    
+                case EffectType.ElementUnity:
+                    effect = new ElementUnityEffect(
+                        data.cardName + " Unity",
+                        description,
+                        data.effectDuration,
+                        data.effectValue
+                    );
+                    break;
+                    
+                case EffectType.ElementReversal:
+                    effect = new ElementReversalEffect(
+                        data.cardName + " Reversal",
+                        description,
+                        data.effectDuration
+                    );
+                    break;
+                    
+                case EffectType.Lightning:
+                    effect = new LightningEffect(
+                        data.cardName + " Lightning",
+                        description,
+                        data.effectDuration,
+                        data.effectValue,
+                        (int)data.effectValue2,
+                        0.05f, // Default stun chance
+                        1      // Default stun duration
+                    );
+                    break;
+                    
+                case EffectType.Thunder:
+                    effect = new ThunderEffect(
+                        data.cardName + " Thunder",
+                        description,
+                        data.effectDuration,
+                        (int)data.effectValue,
+                        data.effectValue2,
+                        1 // Default stun duration
+                    );
+                    break;
+                    
+                case EffectType.Flood:
+                    effect = new FloodEffect(
+                        data.cardName + " Flood",
+                        description,
+                        data.effectDuration,
+                        (int)data.effectValue,
+                        (int)data.effectValue2
+                    );
+                    break;
+                    
+                case EffectType.Charm:
+                    effect = new CharmEffect(
+                        data.cardName + " Charm",
+                        description,
+                        data.effectDuration,
+                        data.effectValue,
+                        (int)data.effectValue2
+                    );
+                    break;
+                    
+                case EffectType.Complex:
+                    // For complex effects, create a container
+                    effect = new ComplexEffect(
+                        data.cardName + " Complex",
+                        description,
+                        data.effectDuration
+                    );
+                    break;
+                    
+                case EffectType.None:
+                default:
+                    // Return a default effect that does nothing
+                    effect = new StatBuffEffect(
+                        data.cardName + " Effect",
+                        "No effect",
+                        0,
+                        "none",
+                        0
+                    );
+                    break;
+            }
+            
+            // Add to cache
+            if (effect != null)
+            {
+                _effectCache[cacheKey] = effect;
+            }
+            
+            return effect;
+        }
+        
+        /// <summary>
+        /// Get the NapAm name based on element type and index
+        /// </summary>
+        private string GetNapAmName(ElementType elementType, int napAmIndex)
+        {
+            switch (elementType)
+            {
+                case ElementType.Metal:
+                    return GetMetalNapAmName(napAmIndex);
+                case ElementType.Wood:
+                    return GetWoodNapAmName(napAmIndex);
+                case ElementType.Water:
+                    return GetWaterNapAmName(napAmIndex);
+                case ElementType.Fire:
+                    return GetFireNapAmName(napAmIndex);
+                case ElementType.Earth:
+                    return GetEarthNapAmName(napAmIndex);
+                default:
+                    return "Unknown";
+            }
+        }
+        
+        /// <summary>
+        /// Get Metal NapAm name
+        /// </summary>
+        private string GetMetalNapAmName(int index)
+        {
+            string[] names = {
+                "Sword Qi",
+                "Hardness",
+                "Purity",
+                "Reflection",
+                "Spirit",
+                "Calmness"
+            };
+            
+            return (index >= 0 && index < names.Length) ? names[index] : "Unknown";
+        }
+        
+        /// <summary>
+        /// Get Wood NapAm name
+        /// </summary>
+        private string GetWoodNapAmName(int index)
+        {
+            string[] names = {
+                "Growth",
+                "Flexibility",
+                "Symbiosis",
+                "Regeneration",
+                "Toxin",
+                "Shelter"
+            };
+            
+            return (index >= 0 && index < names.Length) ? names[index] : "Unknown";
+        }
+        
+        /// <summary>
+        /// Get Water NapAm name
+        /// </summary>
+        private string GetWaterNapAmName(int index)
+        {
+            string[] names = {
+                "Adaptation",
+                "Ice",
+                "Flow",
+                "Mist",
+                "Reflection",
+                "Purification"
+            };
+            
+            return (index >= 0 && index < names.Length) ? names[index] : "Unknown";
+        }
+        
+        /// <summary>
+        /// Get Fire NapAm name
+        /// </summary>
+        private string GetFireNapAmName(int index)
+        {
+            string[] names = {
+                "Burning",
+                "Explosion",
+                "Passion",
+                "Light",
+                "Forging",
+                "Incineration"
+            };
+            
+            return (index >= 0 && index < names.Length) ? names[index] : "Unknown";
+        }
+        
+        /// <summary>
+        /// Get Earth NapAm name
+        /// </summary>
+        private string GetEarthNapAmName(int index)
+        {
+            string[] names = {
+                "Solidity",
+                "Gravity",
+                "Fertility",
+                "Volcano",
+                "Crystal",
+                "Terra"
+            };
+            
+            return (index >= 0 && index < names.Length) ? names[index] : "Unknown";
+        }
+        
+        /// <summary>
+        /// Parse element type from string
+        /// </summary>
+        private ElementType ParseElementType(string elementString)
+        {
+            if (string.IsNullOrEmpty(elementString))
+                return ElementType.None;
                 
-            // Create a new entity
-            Entity clone = _entityManager.CreateEntity();
-            
-            // Clone CardInfoComponent
-            CardInfoComponent originalInfo = original.GetComponent<CardInfoComponent>();
-            if (originalInfo != null)
+            switch (elementString.ToLower())
             {
-                CardInfoComponent cloneInfo = new CardInfoComponent
-                {
-                    Id = originalInfo.Id,
-                    KeyName = originalInfo.KeyName,
-                    Name = originalInfo.Name,
-                    Description = originalInfo.Description,
-                    Type = originalInfo.Type,
-                    Rarity = originalInfo.Rarity,
-                    Artwork = originalInfo.Artwork,
-                    Cost = originalInfo.Cost,
-                    State = originalInfo.State
-                };
-                clone.AddComponent(cloneInfo);
+                case "metal":
+                case "kim":
+                    return ElementType.Metal;
+                case "wood":
+                case "moc":
+                case "mộc":
+                    return ElementType.Wood;
+                case "water":
+                case "thuy":
+                case "thủy":
+                    return ElementType.Water;
+                case "fire":
+                case "hoa":
+                case "hỏa":
+                    return ElementType.Fire;
+                case "earth":
+                case "tho":
+                case "thổ":
+                    return ElementType.Earth;
+                default:
+                    return ElementType.None;
             }
-            
-            // Clone StatsComponent
-            StatsComponent originalStats = original.GetComponent<StatsComponent>();
-            if (originalStats != null)
+        }
+        
+        /// <summary>
+        /// Parse threshold type from string
+        /// </summary>
+        private ThresholdType ParseThresholdType(string thresholdString)
+        {
+            if (string.IsNullOrEmpty(thresholdString))
+                return ThresholdType.DamageReceived;
+                
+            switch (thresholdString.ToLower())
             {
-                StatsComponent cloneStats = new StatsComponent(
-                    originalStats.Attack,
-                    originalStats.Defense,
-                    originalStats.Health,
-                    originalStats.Speed
-                )
-                {
-                    MaxHealth = originalStats.MaxHealth,
-                    Accuracy = originalStats.Accuracy,
-                    Evasion = originalStats.Evasion,
-                    Penetration = originalStats.Penetration,
-                    CriticalChance = originalStats.CriticalChance,
-                    CriticalDamage = originalStats.CriticalDamage,
-                    Resistance = originalStats.Resistance
-                };
-                clone.AddComponent(cloneStats);
+                case "damage":
+                case "damagereceived":
+                    return ThresholdType.DamageReceived;
+                case "health":
+                case "healthlost":
+                case "healthlostpercent":
+                    return ThresholdType.HealthLostPercent;
+                case "damagedealt":
+                    return ThresholdType.DamageDealt;
+                case "cardsplayed":
+                    return ThresholdType.CardsPlayed;
+                default:
+                    return ThresholdType.DamageReceived;
             }
-            
-            // Clone ElementComponent
-            ElementComponent originalElement = original.GetComponent<ElementComponent>();
-            if (originalElement != null)
-            {
-                ElementComponent cloneElement = new ElementComponent
-                {
-                    Element = originalElement.Element
-                };
-                clone.AddComponent(cloneElement);
-            }
-            
-            // Clone NapAmComponent
-            NapAmComponent originalNapAm = original.GetComponent<NapAmComponent>();
-            if (originalNapAm != null)
-            {
-                // Note: This assumes NapAmComponent has a constructor that takes element type and index
-                NapAmComponent cloneNapAm = new NapAmComponent(
-                    originalElement?.Element ?? ElementType.None,
-                    originalNapAm.GetNapAmPower() // This is not ideal - you should store and retrieve the actual index
-                );
-                clone.AddComponent(cloneNapAm);
-            }
-            
-            // Clone EffectComponent (simplified - in real implementation, would clone all effects)
-            EffectComponent originalEffect = original.GetComponent<EffectComponent>();
-            if (originalEffect != null)
-            {
-                EffectComponent cloneEffect = new EffectComponent();
-                // For a complete implementation, would need to clone all effects in originalEffect.Effects
-                clone.AddComponent(cloneEffect);
-            }
-            
-            // Clone SupportCardComponent (simplified)
-            SupportCardComponent originalSupport = original.GetComponent<SupportCardComponent>();
-            if (originalSupport != null)
-            {
-                SupportCardComponent cloneSupport = new SupportCardComponent
-                {
-                    ActivationType = originalSupport.ActivationType,
-                    // For a complete implementation, would need to clone Condition and Effect
-                    CooldownTime = originalSupport.CooldownTime,
-                    CurrentCooldown = originalSupport.CurrentCooldown,
-                    IsActive = originalSupport.IsActive
-                };
-                clone.AddComponent(cloneSupport);
-            }
-            
-            return clone;
+        }
+        
+        /// <summary>
+        /// Clear caches
+        /// </summary>
+        public void ClearCaches()
+        {
+            _effectCache.Clear();
+            _conditionCache.Clear();
+            Debug.Log("[ScriptableObjectFactory] Caches cleared");
+        }
+        
+        /// <summary>
+        /// Cleanup resources
+        /// </summary>
+        public override void Cleanup()
+        {
+            ClearCaches();
+            _entityManager = null;
+            base.Cleanup();
         }
     }
 }

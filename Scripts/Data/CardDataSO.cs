@@ -21,9 +21,6 @@ namespace Data
         public int cost;
         public Sprite artwork;
         public ElementType elementType;
-
-        [Header("Other")]
-        public int napAmIndex;
         
         [Header("Stats")]
         public int attack;

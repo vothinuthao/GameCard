@@ -1,6 +1,4 @@
-﻿// BattleController.cs
-
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Components;
 using Core;
 using Core.Utils;
@@ -8,6 +6,9 @@ using RunTime;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using NguhanhGame.UI;
+using Systems;
+using Systems.States;
 
 namespace UI
 {
@@ -31,7 +32,7 @@ namespace UI
         [Header("Card Areas")]
         [SerializeField] private Transform handContainer;
         [SerializeField] private Transform playZoneContainer;
-        [SerializeField] private Transform supportZoneContainer;
+        [SerializeField] private SupportZoneView supportZoneView;
         [SerializeField] private GameObject cardPrefab;
         
         [Header("Battle Controls")]
@@ -63,10 +64,7 @@ namespace UI
         // Internal references
         private List<CardView> handCardViews = new List<CardView>();
         private List<CardView> playZoneCardViews = new List<CardView>();
-        private List<CardView> supportZoneCardViews = new List<CardView>();
         private int currentTurn = 1;
-        private int playerEnergy = 3;
-        private int maxPlayerEnergy = 3;
         
         // Current selected cards
         private Entity selectedCard1 = null;
@@ -74,13 +72,34 @@ namespace UI
         private int selectedCardIndex1 = -1;
         private int selectedCardIndex2 = -1;
         
-        // Enemy intent
-        private string currentEnemyIntent = "Attack";
-        private int currentEnemyIntentValue = 5;
+        // Game references
+        private GameManager _gameManager;
+        private CardSystem _cardSystem;
+        private BattleSystem _battleSystem;
+        private ElementInteractionSystem _elementSystem;
+        private SupportCardSystem _supportCardSystem;
         
-        // Start is called before the first frame update
+        /// <summary>
+        /// Initialize the controller
+        /// </summary>
         private void Start()
         {
+            // Get references
+            _gameManager = GameManager.Instance;
+            if (_gameManager != null)
+            {
+                _cardSystem = _gameManager.GetCardSystem();
+                _battleSystem = _gameManager.GetBattleSystem();
+                _elementSystem = _gameManager.GetElementInteractionSystem();
+                _supportCardSystem = _gameManager.GetSupportCardSystem();
+            }
+            
+            // Initialize SupportZoneView
+            if (supportZoneView != null)
+            {
+                supportZoneView.SetBattleController(this);
+            }
+            
             // Add button listeners
             endTurnButton.onClick.AddListener(OnEndTurnClicked);
             cancelSelectionButton.onClick.AddListener(OnCancelSelectionClicked);
@@ -97,16 +116,12 @@ namespace UI
             // Hide card selection panel
             cardSelectionPanel.SetActive(false);
             
-            // Start a new game
-            GameManager.Instance.StartNewGame();
+            // Start a new game if needed
+            if (_gameManager != null && !_gameManager.IsGameInProgress())
+            {
+                _gameManager.StartNewGame();
+            }
             
-            // Reset battle state
-            ResetBattleState();
-        }
-        
-        // OnEnable is called when the gameObject becomes enabled and active
-        private void OnEnable()
-        {
             // Reset battle state
             ResetBattleState();
             
@@ -120,7 +135,6 @@ namespace UI
         private void ResetBattleState()
         {
             currentTurn = 1;
-            playerEnergy = maxPlayerEnergy;
             selectedCard1 = null;
             selectedCard2 = null;
             selectedCardIndex1 = -1;
@@ -128,10 +142,11 @@ namespace UI
             battleLogText.text = "";
         }
         
-        // Update is called once per frame
+        /// <summary>
+        /// Update UI each frame
+        /// </summary>
         private void Update()
         {
-            // Update UI periodically
             UpdateUI();
         }
         
@@ -140,12 +155,10 @@ namespace UI
         /// </summary>
         private void UpdateUI()
         {
-            // Get references
-            var gameManager = GameManager.Instance;
-            var cardSystem = gameManager.GetCardSystem();
+            if (_gameManager == null || _cardSystem == null) return;
             
             // Update player stats
-            Entity playerEntity = gameManager.GetPlayerEntity();
+            Entity playerEntity = _gameManager.GetPlayerEntity();
             if (playerEntity != null)
             {
                 StatsComponent playerStats = playerEntity.GetComponent<StatsComponent>();
@@ -158,10 +171,12 @@ namespace UI
             }
             
             // Update player energy
+            int playerEnergy = _gameManager.GetPlayerEnergy();
+            int maxPlayerEnergy = _battleSystem.GetMaxPlayerEnergy();
             playerEnergyText.text = $"Energy: {playerEnergy} / {maxPlayerEnergy}";
             
             // Update enemy stats
-            Entity enemyEntity = gameManager.GetEnemyEntity();
+            Entity enemyEntity = _gameManager.GetEnemyEntity();
             if (enemyEntity != null)
             {
                 StatsComponent enemyStats = enemyEntity.GetComponent<StatsComponent>();
@@ -183,53 +198,65 @@ namespace UI
                 ElementComponent enemyElement = enemyEntity.GetComponent<ElementComponent>();
                 if (enemyElement != null)
                 {
-                    switch (enemyElement.Element)
-                    {
-                        case ElementType.Metal:
-                            enemyImage.color = new Color(0.7f, 0.7f, 0.7f);
-                            break;
-                        case ElementType.Wood:
-                            enemyImage.color = new Color(0.0f, 0.6f, 0.0f);
-                            break;
-                        case ElementType.Water:
-                            enemyImage.color = new Color(0.0f, 0.0f, 0.8f);
-                            break;
-                        case ElementType.Fire:
-                            enemyImage.color = new Color(0.8f, 0.0f, 0.0f);
-                            break;
-                        case ElementType.Earth:
-                            enemyImage.color = new Color(0.6f, 0.4f, 0.2f);
-                            break;
-                    }
+                    // Get color based on element
+                    enemyImage.color = GetElementColor(enemyElement.Element);
                 }
             }
             
             // Update enemy intent
-            enemyIntentText.text = $"Intent: {currentEnemyIntent} {currentEnemyIntentValue}";
+            string intentType = _battleSystem.GetEnemyIntentType();
+            int intentValue = _battleSystem.GetEnemyIntentValue();
+            enemyIntentText.text = $"Intent: {intentType} {intentValue}";
             
             // Update hand cards
-            UpdateHandCards(cardSystem.GetHand());
+            UpdateHandCards(_cardSystem.GetHand());
             
             // Update play zone
-            UpdatePlayZone(cardSystem.GetPlayZone());
+            UpdatePlayZone(_cardSystem.GetPlayZone());
             
             // Update support zone
-            UpdateSupportZone(cardSystem.GetSupportZone());
+            if (supportZoneView != null)
+            {
+                supportZoneView.SetSupportCards(_cardSystem.GetSupportZone());
+                supportZoneView.UpdateSupportCardStatus();
+            }
             
             // Update deck and discard counts
-            deckCountText.text = $"Deck: {cardSystem.GetDeck().Count}";
-            discardCountText.text = $"Discard: {cardSystem.GetDiscardPile().Count}";
+            deckCountText.text = $"Deck: {_cardSystem.GetDeck().Count}";
+            discardCountText.text = $"Discard: {_cardSystem.GetDiscardPile().Count}";
             
             // Update turn and season
             turnText.text = $"Turn: {currentTurn}";
-            seasonText.text = $"Season: {gameManager.GetCurrentSeason()}";
+            seasonText.text = $"Season: {_gameManager.GetCurrentSeason()}";
             
             // Disable end turn button if battle is over
-            bool battleOver = gameManager.GetBattleSystem().IsBattleOver();
+            bool battleOver = _battleSystem.IsBattleOver();
             endTurnButton.interactable = !battleOver;
             
             // Show restart button if battle is over
             restartButton.gameObject.SetActive(battleOver);
+        }
+        
+        /// <summary>
+        /// Get color based on element type
+        /// </summary>
+        private Color GetElementColor(ElementType elementType)
+        {
+            switch (elementType)
+            {
+                case ElementType.Metal:
+                    return new Color(0.7f, 0.7f, 0.7f);
+                case ElementType.Wood:
+                    return new Color(0.0f, 0.6f, 0.0f);
+                case ElementType.Water:
+                    return new Color(0.0f, 0.0f, 0.8f);
+                case ElementType.Fire:
+                    return new Color(0.8f, 0.0f, 0.0f);
+                case ElementType.Earth:
+                    return new Color(0.6f, 0.4f, 0.2f);
+                default:
+                    return Color.gray;
+            }
         }
         
         /// <summary>
@@ -298,36 +325,6 @@ namespace UI
         }
         
         /// <summary>
-        /// Update support zone display
-        /// </summary>
-        private void UpdateSupportZone(List<Entity> supportZoneCards)
-        {
-            // Clear existing cards if count mismatch
-            if (supportZoneCardViews.Count != supportZoneCards.Count)
-            {
-                ClearContainer(supportZoneContainer);
-                supportZoneCardViews.Clear();
-                
-                // Create new card views
-                for (int i = 0; i < supportZoneCards.Count; i++)
-                {
-                    GameObject cardGO = Instantiate(cardPrefab, supportZoneContainer);
-                    CardView cardView = cardGO.GetComponent<CardView>();
-                    cardView.SetCard(supportZoneCards[i]);
-                    supportZoneCardViews.Add(cardView);
-                }
-            }
-            else
-            {
-                // Update existing card views
-                for (int i = 0; i < supportZoneCards.Count; i++)
-                {
-                    supportZoneCardViews[i].SetCard(supportZoneCards[i]);
-                }
-            }
-        }
-        
-        /// <summary>
         /// Clear all child objects from a container
         /// </summary>
         private void ClearContainer(Transform container)
@@ -343,23 +340,18 @@ namespace UI
         /// </summary>
         private void OnHandCardClicked(int cardIndex)
         {
-            var cardSystem = GameManager.Instance.GetCardSystem();
-            var hand = cardSystem.GetHand();
+            if (_cardSystem == null) return;
             
-            if (cardIndex < 0 || cardIndex >= hand.Count)
-                return;
+            var hand = _cardSystem.GetHand();
+            if (cardIndex < 0 || cardIndex >= hand.Count) return;
             
             Entity card = hand[cardIndex];
             
             // Get card cost
-            int cardCost = 1; // Default cost
-            CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
-            if (cardInfo != null)
-            {
-                cardCost = cardInfo.Cost;
-            }
+            int cardCost = GetCardCost(card);
             
             // Check if we have enough energy
+            int playerEnergy = _gameManager.GetPlayerEnergy();
             if (playerEnergy < cardCost)
             {
                 AddBattleLog("Not enough energy to play this card!");
@@ -369,49 +361,72 @@ namespace UI
             // Check if this is a support card
             if (card.HasComponent<SupportCardComponent>())
             {
-                // Play as support
-                if (cardSystem.GetSupportZone().Count < 6) // Maximum 6 support cards
+                // Check if support zone has space
+                if (supportZoneView != null && supportZoneView.CanPlaySupportCard())
                 {
-                    cardSystem.PlayAsSupport(card);
-                    playerEnergy -= cardCost;
-                    AddBattleLog($"Played {cardInfo.Name} as support card.");
+                    // Play as support
+                    _cardSystem.PlayAsSupport(card);
+                    _gameManager.SetPlayerEnergy(playerEnergy - cardCost);
+                    
+                    CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                    AddBattleLog($"Played {cardInfo?.Name ?? "card"} as support card.");
+                    
+                    // Reset selection if this card was selected
+                    if (cardIndex == selectedCardIndex1 || cardIndex == selectedCardIndex2)
+                    {
+                        ResetCardSelection();
+                    }
+                    return;
                 }
                 else
                 {
                     AddBattleLog("Support zone is full!");
+                    return;
                 }
-                return;
             }
             
-            // If no card is selected yet, select this card
+            // Card selection logic
             if (selectedCard1 == null)
             {
+                // First card selected
                 selectedCard1 = card;
                 selectedCardIndex1 = cardIndex;
-                AddBattleLog($"Selected {cardInfo.Name}.");
                 
-                // If this is the only card we want to play, show confirmation
-                ShowCardSelectionPanel("Play this card?", new List<Entity> { card }, cardIndex => {
-                    // Play the card
+                CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                AddBattleLog($"Selected {cardInfo?.Name ?? "card"}.");
+                
+                // Show confirmation for single card play
+                ShowCardSelectionPanel("Play this card?", new List<Entity> { card }, _ => {
                     PlaySelectedCards();
                 });
             }
-            // If a card is already selected, select this as second card if different
             else if (selectedCardIndex1 != cardIndex)
             {
+                // Second card selected
                 selectedCard2 = card;
                 selectedCardIndex2 = cardIndex;
-                AddBattleLog($"Selected {cardInfo.Name} as second card.");
                 
-                // Show confirmation
-                ShowCardSelectionPanel("Play these cards?", new List<Entity> { selectedCard1, selectedCard2 }, cardIndex => {
-                    // Play the cards
+                CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                AddBattleLog($"Selected {cardInfo?.Name ?? "card"} as second card.");
+                
+                // Check if total cost is affordable
+                int totalCost = GetCardCost(selectedCard1) + GetCardCost(selectedCard2);
+                if (playerEnergy < totalCost)
+                {
+                    AddBattleLog("Not enough energy to play both cards!");
+                    selectedCard2 = null;
+                    selectedCardIndex2 = -1;
+                    return;
+                }
+                
+                // Show confirmation for combo
+                ShowCardSelectionPanel("Play these cards?", new List<Entity> { selectedCard1, selectedCard2 }, _ => {
                     PlaySelectedCards();
                 });
             }
-            // If this card is already selected, deselect it
             else
             {
+                // Deselect first card
                 selectedCard1 = null;
                 selectedCardIndex1 = -1;
                 AddBattleLog("Deselected card.");
@@ -457,16 +472,20 @@ namespace UI
         /// </summary>
         private void OnCancelSelectionClicked()
         {
-            // Reset selection
+            ResetCardSelection();
+            cardSelectionPanel.SetActive(false);
+            AddBattleLog("Card selection canceled.");
+        }
+        
+        /// <summary>
+        /// Reset card selection
+        /// </summary>
+        private void ResetCardSelection()
+        {
             selectedCard1 = null;
             selectedCard2 = null;
             selectedCardIndex1 = -1;
             selectedCardIndex2 = -1;
-            
-            // Hide panel
-            cardSelectionPanel.SetActive(false);
-            
-            AddBattleLog("Card selection canceled.");
         }
         
         /// <summary>
@@ -474,71 +493,59 @@ namespace UI
         /// </summary>
         private void PlaySelectedCards()
         {
-            var gameManager = GameManager.Instance;
-            var cardSystem = gameManager.GetCardSystem();
-            var battleSystem = gameManager.GetBattleSystem();
-            var enemyEntity = gameManager.GetEnemyEntity();
+            if (_gameManager == null || _battleSystem == null || _cardSystem == null) return;
+            
+            Entity enemyEntity = _gameManager.GetEnemyEntity();
+            if (enemyEntity == null) return;
             
             // Calculate total cost
             int totalCost = 0;
             
+            // Play first card
             if (selectedCard1 != null)
             {
-                CardInfoComponent cardInfo = selectedCard1.GetComponent<CardInfoComponent>();
-                if (cardInfo != null)
-                {
-                    totalCost += cardInfo.Cost;
-                }
-            }
-            
-            if (selectedCard2 != null)
-            {
-                CardInfoComponent cardInfo = selectedCard2.GetComponent<CardInfoComponent>();
-                if (cardInfo != null)
-                {
-                    totalCost += cardInfo.Cost;
-                }
-            }
-            
-            // Check if we have enough energy
-            if (playerEnergy < totalCost)
-            {
-                AddBattleLog("Not enough energy to play these cards!");
-                return;
-            }
-            
-            // Play first card
-            if (selectedCard1 != null && enemyEntity != null)
-            {
-                // battleSystem.PlayCard(selectedCard1, enemyEntity);
-                playerEnergy -= GetCardCost(selectedCard1);
+                int cardCost = GetCardCost(selectedCard1);
+                totalCost += cardCost;
+                
+                // Add to battle system's selected cards
+                _battleSystem.SelectCard(selectedCard1);
                 
                 CardInfoComponent cardInfo = selectedCard1.GetComponent<CardInfoComponent>();
-                AddBattleLog($"Played {cardInfo.Name}.");
+                AddBattleLog($"Played {cardInfo?.Name ?? "card"}.");
                 
                 // Log element interaction
                 LogElementInteraction(selectedCard1, enemyEntity);
             }
             
             // Play second card
-            if (selectedCard2 != null && enemyEntity != null)
+            if (selectedCard2 != null)
             {
-                // battleSystem.PlayCard(selectedCard2, enemyEntity);
-                playerEnergy -= GetCardCost(selectedCard2);
+                int cardCost = GetCardCost(selectedCard2);
+                totalCost += cardCost;
+                
+                // Add to battle system's selected cards
+                _battleSystem.SelectCard(selectedCard2);
                 
                 CardInfoComponent cardInfo = selectedCard2.GetComponent<CardInfoComponent>();
-                AddBattleLog($"Played {cardInfo.Name}.");
+                AddBattleLog($"Played {cardInfo?.Name ?? "card"}.");
                 
                 // Log element interaction
                 LogElementInteraction(selectedCard2, enemyEntity);
             }
             
-            // Check if enemy is defeated
-            if (battleSystem.IsBattleOver())
+            // Deduct energy
+            int playerEnergy = _gameManager.GetPlayerEnergy();
+            _gameManager.SetPlayerEnergy(playerEnergy - totalCost);
+            
+            // Change state to card resolution
+            _battleSystem.GetStateMachine().ChangeState(BattleStateType.CardResolution);
+            
+            // Check if battle is over
+            if (_battleSystem.IsBattleOver())
             {
-                Entity winner = battleSystem.GetWinner();
+                Entity winner = _battleSystem.GetWinner();
                 
-                if (winner == gameManager.GetPlayerEntity())
+                if (winner == _gameManager.GetPlayerEntity())
                 {
                     AddBattleLog("Victory! You defeated the enemy.");
                 }
@@ -549,10 +556,7 @@ namespace UI
             }
             
             // Reset selection
-            selectedCard1 = null;
-            selectedCard2 = null;
-            selectedCardIndex1 = -1;
-            selectedCardIndex2 = -1;
+            ResetCardSelection();
         }
         
         /// <summary>
@@ -560,25 +564,26 @@ namespace UI
         /// </summary>
         private void LogElementInteraction(Entity card, Entity target)
         {
+            if (_elementSystem == null) return;
+            
             ElementComponent cardElement = card.GetComponent<ElementComponent>();
             ElementComponent targetElement = target.GetComponent<ElementComponent>();
-            var elementSystem = GameManager.Instance.GetElementInteractionSystem();
             
             if (cardElement != null && targetElement != null)
             {
                 string interaction = $"{cardElement.GetElementName()} vs {targetElement.GetElementName()}: ";
                 
-                if (elementSystem.HasGeneratingRelationship(cardElement.Element, targetElement.Element))
+                if (_elementSystem.HasGeneratingRelationship(cardElement.Element, targetElement.Element))
                 {
                     interaction += "+30% effectiveness (Tương Sinh)";
                     AddBattleLog(interaction);
                 }
-                else if (elementSystem.HasOvercomingRelationship(cardElement.Element, targetElement.Element))
+                else if (_elementSystem.HasOvercomingRelationship(cardElement.Element, targetElement.Element))
                 {
                     interaction += "+50% damage (Tương Khắc)";
                     AddBattleLog(interaction);
                 }
-                else if (elementSystem.HasOvercomingRelationship(targetElement.Element, cardElement.Element))
+                else if (_elementSystem.HasOvercomingRelationship(targetElement.Element, cardElement.Element))
                 {
                     interaction += "Disadvantage! Enemy has element advantage";
                     AddBattleLog(interaction);
@@ -600,45 +605,18 @@ namespace UI
         /// </summary>
         private void OnEndTurnClicked()
         {
-            // Generate enemy intent for next turn
-            GenerateEnemyIntent();
+            if (_battleSystem == null) return;
             
             // End turn in game manager
-            GameManager.Instance.EndTurn();
+            _gameManager.EndTurn();
             
             // Update turn counter
             currentTurn++;
             
-            // Reset energy
-            playerEnergy = maxPlayerEnergy;
-            
-            // Reset selection
-            selectedCard1 = null;
-            selectedCard2 = null;
-            selectedCardIndex1 = -1;
-            selectedCardIndex2 = -1;
+            // Reset card selection
+            ResetCardSelection();
             
             AddBattleLog($"Started turn {currentTurn}.");
-        }
-        
-        /// <summary>
-        /// Generate enemy intent for next turn
-        /// </summary>
-        private void GenerateEnemyIntent()
-        {
-            // Simple AI: Alternate between attack and defense
-            if (currentEnemyIntent == "Attack")
-            {
-                currentEnemyIntent = "Defense";
-                currentEnemyIntentValue = Random.Range(3, 8);
-            }
-            else
-            {
-                currentEnemyIntent = "Attack";
-                currentEnemyIntentValue = Random.Range(4, 10);
-            }
-            
-            AddBattleLog($"Enemy's intent: {currentEnemyIntent} {currentEnemyIntentValue}");
         }
         
         /// <summary>
@@ -646,7 +624,9 @@ namespace UI
         /// </summary>
         private void OnSeasonClicked(Season season)
         {
-            GameManager.Instance.SetSeason(season);
+            if (_gameManager == null) return;
+            
+            _gameManager.SetSeason(season);
             AddBattleLog($"Changed season to {season}.");
         }
         
@@ -655,11 +635,13 @@ namespace UI
         /// </summary>
         private void OnRestartClicked()
         {
+            if (_gameManager == null) return;
+            
             // Reset battle state
             ResetBattleState();
             
             // Start a new game
-            GameManager.Instance.StartNewGame();
+            _gameManager.StartNewGame();
             
             // Add first battle log entry
             AddBattleLog("Started a new battle!");
@@ -675,6 +657,17 @@ namespace UI
             // Scroll to bottom
             Canvas.ForceUpdateCanvases();
             battleLogScrollRect.verticalNormalizedPosition = 0f;
+        }
+        
+        /// <summary>
+        /// Add a method for BattleSystem to call
+        /// </summary>
+        public void OnBattleEvent(string eventType, string message)
+        {
+            AddBattleLog(message);
+            
+            // Update the UI immediately
+            UpdateUI();
         }
     }
 }

@@ -9,7 +9,8 @@ namespace Data
     [CreateAssetMenu(fileName = "New Elemental Card", menuName = "NguhanhGame/Elemental Card Data")]
     public class ElementalCardDataSO : CardDataSO
     {
-        [System.NonSerialized]
-        public string napAmName; // Will be set at runtime based on elementType and napAmIndex
+        [Header("Nạp Âm")]
+        public int napAmIndex;
+        public string napAmName; 
     }
 }

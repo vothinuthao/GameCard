@@ -19,5 +19,7 @@ namespace Components
         public Sprite Artwork { get; set; }
         public int Cost { get; set; }
         public CardState State { get; set; } = CardState.InDeck;
+        // public int NapAmIndex { get; set; }
+        // public string NapAmName { get; set; }
     }
 }

@@ -9,6 +9,7 @@ namespace Components
     /// </summary>
     public class NapAmComponent : Component
     {
+        
         // Current NapAm for this card
         private ElementType _elementType;
         private int _napAmIndex;
