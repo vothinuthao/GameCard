@@ -63,20 +63,28 @@ namespace RunTime
             }
             
             _entityManager = entityManager;
+            
+            // Initialize CardDataCacheManager if needed
             if (!CardDataCacheManager.HasInstance)
             {
-                Debug.LogWarning("[LoadCardData] CardDataCache not found, creating a new instance");
+                Debug.Log("[LoadCardData] CardDataCache not found, creating a new instance");
+                CardDataCacheManager.Instance.Initialize();
+            }
+            else if (!CardDataCacheManager.Instance.IsInitialized)
+            {
+                Debug.Log("[LoadCardData] Initializing existing CardDataCache");
                 CardDataCacheManager.Instance.Initialize();
             }
             
-            // Make sure ScriptableObjectFactory is initialized
+            // Initialize ScriptableObjectFactory if needed
             if (!ScriptableObjectFactory.HasInstance)
             {
-                Debug.LogWarning("[LoadCardData] ScriptableObjectFactory not found, creating a new instance");
+                Debug.Log("[LoadCardData] ScriptableObjectFactory not found, creating a new instance");
                 ScriptableObjectFactory.Instance.Initialize(entityManager);
             }
             else if (!ScriptableObjectFactory.Instance.IsInitialized)
             {
+                Debug.Log("[LoadCardData] Initializing existing ScriptableObjectFactory");
                 ScriptableObjectFactory.Instance.Initialize(entityManager);
             }
             
@@ -114,35 +122,55 @@ namespace RunTime
         /// </summary>
         public void LoadAllCards()
         {
-            // Ensure initialized
-            EnsureInitialized();
+            // Ensure initialized with proper entity manager
+            if (!IsInitialized || _entityManager == null)
+            {
+                Debug.LogError("[LoadCardData] Cannot load cards - not properly initialized with EntityManager!");
+                return;
+            }
             
             if (_allCardsLoaded)
+            {
+                Debug.Log("[LoadCardData] Cards already loaded, skipping...");
                 return;
+            }
             
             Debug.Log("[LoadCardData] Loading all cards from Resources...");
             
-            // Make sure data manager loads all card data
-            CardDataCacheManager.Instance.LoadAllCardData();
-            
-            // Get all card data from CardDataCache
-            foreach (ElementType element in System.Enum.GetValues(typeof(ElementType)))
+            try
             {
-                if (element == ElementType.None)
-                    continue;
-                    
-                List<CardDataSO> elementCards = CardDataCacheManager.Instance.GetCardDataByElement(element);
-                if (elementCards != null)
+                // Make sure data manager loads all card data
+                CardDataCacheManager.Instance.LoadAllCardData();
+                
+                // Get all card data from CardDataCache
+                foreach (ElementType element in System.Enum.GetValues(typeof(ElementType)))
                 {
-                    foreach (var cardData in elementCards)
+                    if (element == ElementType.None)
+                        continue;
+                        
+                    List<CardDataSO> elementCards = CardDataCacheManager.Instance.GetCardDataByElement(element);
+                    if (elementCards != null)
                     {
-                        LoadCard(cardData);
+                        foreach (var cardData in elementCards)
+                        {
+                            if (cardData != null)
+                            {
+                                LoadCard(cardData);
+                            }
+                        }
                     }
                 }
+                
+                _allCardsLoaded = true;
+                
+                int totalCards = _elementalCardCache.Sum(kv => kv.Value.Count);
+                Debug.Log($"[LoadCardData] Successfully loaded {totalCards} cards into cache.");
             }
-            
-            _allCardsLoaded = true;
-            Debug.Log($"[LoadCardData] Successfully loaded cards into cache. Element cards: {_elementalCardCache.Sum(kv => kv.Value.Count)}, Card types: {_cardTypeCache.Sum(kv => kv.Value.Count)}");
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[LoadCardData] Error loading cards: {e.Message}\n{e.StackTrace}");
+                _allCardsLoaded = false;
+            }
         }
         
         /// <summary>
@@ -150,8 +178,12 @@ namespace RunTime
         /// </summary>
         private Entity LoadCard(CardDataSO cardData)
         {
-            // Ensure initialized
-            EnsureInitialized();
+            // Ensure initialized with proper entity manager
+            if (!IsInitialized || _entityManager == null)
+            {
+                Debug.LogError("[LoadCardData] Cannot load card - not properly initialized with EntityManager!");
+                return null;
+            }
             
             if (cardData == null)
                 return null;
@@ -160,8 +192,24 @@ namespace RunTime
             if (!string.IsNullOrEmpty(cardData.cardKeyName) && _cardCache.ContainsKey(cardData.cardKeyName))
                 return _cardCache[cardData.cardKeyName];
             
+            // Ensure ScriptableObjectFactory is initialized
+            if (!ScriptableObjectFactory.Instance.IsInitialized)
+            {
+                ScriptableObjectFactory.Instance.Initialize(_entityManager);
+            }
+            
             // Create entity from card data using the factory
-            Entity cardEntity = ScriptableObjectFactory.Instance.CreateCardFromSO(cardData);
+            Entity cardEntity = null;
+            
+            try
+            {
+                cardEntity = ScriptableObjectFactory.Instance.CreateCardFromSO(cardData);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[LoadCardData] Error creating entity from card data: {e.Message}");
+                return null;
+            }
             
             if (cardEntity != null)
             {
@@ -209,8 +257,18 @@ namespace RunTime
         /// </summary>
         public Entity GetCardByKeyName(string keyName)
         {
-            // Ensure initialized
-            EnsureInitialized();
+            // Ensure initialized with proper entity manager
+            if (!IsInitialized || _entityManager == null)
+            {
+                Debug.LogError("[LoadCardData] Cannot get card - not properly initialized with EntityManager!");
+                return null;
+            }
+            
+            // Make sure cards are loaded
+            if (!_allCardsLoaded)
+            {
+                LoadAllCards();
+            }
             
             // Check if in cache first
             if (_cardCache.TryGetValue(keyName, out Entity cachedCard))
@@ -235,8 +293,12 @@ namespace RunTime
         /// </summary>
         public List<Entity> GetCardsByElement(ElementType elementType)
         {
-            // Ensure initialized
-            EnsureInitialized();
+            // Ensure initialized with proper entity manager
+            if (!IsInitialized || _entityManager == null)
+            {
+                Debug.LogError("[LoadCardData] Cannot get cards - not properly initialized with EntityManager!");
+                return new List<Entity>();
+            }
             
             // Make sure all cards are loaded
             if (!_allCardsLoaded)
@@ -252,8 +314,12 @@ namespace RunTime
         /// </summary>
         public List<Entity> GetCardsByType(CardType cardType)
         {
-            // Ensure initialized
-            EnsureInitialized();
+            // Ensure initialized with proper entity manager
+            if (!IsInitialized || _entityManager == null)
+            {
+                Debug.LogError("[LoadCardData] Cannot get cards - not properly initialized with EntityManager!");
+                return new List<Entity>();
+            }
             
             // Make sure all cards are loaded
             if (!_allCardsLoaded)
@@ -269,8 +335,12 @@ namespace RunTime
         /// </summary>
         public List<Entity> GetCardsByRarity(Rarity rarity)
         {
-            // Ensure initialized
-            EnsureInitialized();
+            // Ensure initialized with proper entity manager
+            if (!IsInitialized || _entityManager == null)
+            {
+                Debug.LogError("[LoadCardData] Cannot get cards - not properly initialized with EntityManager!");
+                return new List<Entity>();
+            }
             
             // Make sure all cards are loaded
             if (!_allCardsLoaded)
@@ -286,8 +356,12 @@ namespace RunTime
         /// </summary>
         public List<Entity> CreateRandomDeck(int deckSize = 10, bool balanced = true)
         {
-            // Ensure initialized
-            EnsureInitialized();
+            // Ensure initialized with proper entity manager
+            if (!IsInitialized || _entityManager == null)
+            {
+                Debug.LogError("[LoadCardData] Cannot create deck - not properly initialized with EntityManager!");
+                return new List<Entity>();
+            }
             
             // Make sure all cards are loaded
             if (!_allCardsLoaded)
@@ -295,15 +369,23 @@ namespace RunTime
             
             List<Entity> deck = new List<Entity>();
             
-            if (balanced)
+            try 
             {
-                // Create a balanced deck with cards from all elements
-                CreateBalancedRandomDeck(deck, deckSize);
+                if (balanced)
+                {
+                    // Create a balanced deck with cards from all elements
+                    CreateBalancedRandomDeck(deck, deckSize);
+                }
+                else
+                {
+                    // Create a fully random deck
+                    CreateFullyRandomDeck(deck, deckSize);
+                }
             }
-            else
+            catch (System.Exception e)
             {
-                // Create a fully random deck
-                CreateFullyRandomDeck(deck, deckSize);
+                Debug.LogError($"[LoadCardData] Error creating random deck: {e.Message}");
+                return new List<Entity>();
             }
             
             return deck;
@@ -314,8 +396,12 @@ namespace RunTime
         /// </summary>
         public List<Entity> CreateRandomStarterDeck(string theme = "balanced", int deckSize = 8)
         {
-            // Ensure initialized
-            EnsureInitialized();
+            // Ensure initialized with proper entity manager
+            if (!IsInitialized || _entityManager == null)
+            {
+                Debug.LogError("[LoadCardData] Cannot create deck - not properly initialized with EntityManager!");
+                return new List<Entity>();
+            }
             
             // Make sure all cards are loaded
             if (!_allCardsLoaded)
@@ -323,34 +409,59 @@ namespace RunTime
             
             List<Entity> deck = new List<Entity>();
             
-            switch (theme.ToLower())
+            try
             {
-                case "metal":
-                    CreateElementFocusedDeck(deck, ElementType.Metal, deckSize);
-                    break;
-                case "wood":
-                    CreateElementFocusedDeck(deck, ElementType.Wood, deckSize);
-                    break;
-                case "water":
-                    CreateElementFocusedDeck(deck, ElementType.Water, deckSize);
-                    break;
-                case "fire":
-                    CreateElementFocusedDeck(deck, ElementType.Fire, deckSize);
-                    break;
-                case "earth":
-                    CreateElementFocusedDeck(deck, ElementType.Earth, deckSize);
-                    break;
-                case "balanced":
-                default:
-                    CreateBalancedRandomDeck(deck, deckSize);
-                    break;
+                switch (theme.ToLower())
+                {
+                    case "metal":
+                        CreateElementFocusedDeck(deck, ElementType.Metal, deckSize);
+                        break;
+                    case "wood":
+                        CreateElementFocusedDeck(deck, ElementType.Wood, deckSize);
+                        break;
+                    case "water":
+                        CreateElementFocusedDeck(deck, ElementType.Water, deckSize);
+                        break;
+                    case "fire":
+                        CreateElementFocusedDeck(deck, ElementType.Fire, deckSize);
+                        break;
+                    case "earth":
+                        CreateElementFocusedDeck(deck, ElementType.Earth, deckSize);
+                        break;
+                    case "balanced":
+                    default:
+                        CreateBalancedRandomDeck(deck, deckSize);
+                        break;
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[LoadCardData] Error creating {theme} starter deck: {e.Message}");
+                
+                // Fallback to creating any cards possible
+                var allElementalCards = new List<Entity>();
+                foreach (var element in _elementalCardCache.Values)
+                {
+                    allElementalCards.AddRange(element);
+                }
+                
+                if (allElementalCards.Count > 0)
+                {
+                    int count = Mathf.Min(deckSize, allElementalCards.Count);
+                    for (int i = 0; i < count; i++)
+                    {
+                        deck.Add(CloneEntity(allElementalCards[i % allElementalCards.Count]));
+                    }
+                }
             }
             
+            Debug.Log($"[LoadCardData] Created {theme} starter deck with {deck.Count} cards");
             return deck;
         }
         
         /// <summary>
         /// Create a balanced random deck with cards from all elements
+        /// Only uses ElementalCard type cards (not any other card types)
         /// </summary>
         private void CreateBalancedRandomDeck(List<Entity> deck, int deckSize)
         {
@@ -363,12 +474,26 @@ namespace RunTime
                 if (element == ElementType.None)
                     continue;
                 
-                if (!_elementalCardCache.ContainsKey(element))
+                if (!_elementalCardCache.ContainsKey(element) || _elementalCardCache[element].Count == 0)
                     continue;
                     
-                List<Entity> elementCards = _elementalCardCache[element];
+                // Get all elemental cards for this element
+                List<Entity> elementCards = new List<Entity>();
                 
-                if (elementCards != null && elementCards.Count > 0)
+                // Filter to only include ElementalCard type cards
+                foreach (var card in _elementalCardCache[element])
+                {
+                    if (card != null)
+                    {
+                        CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                        if (cardInfo != null && cardInfo.Type == CardType.ElementalCard)
+                        {
+                            elementCards.Add(card);
+                        }
+                    }
+                }
+                
+                if (elementCards.Count > 0)
                 {
                     // Shuffle the element cards
                     List<Entity> shuffled = ShuffleList(elementCards);
@@ -385,39 +510,60 @@ namespace RunTime
             if (deck.Count < deckSize)
             {
                 // Get all elemental cards and shuffle them
-                List<Entity> allCards = new List<Entity>();
+                List<Entity> allElementalCards = new List<Entity>();
+                
+                // Collect all ElementalCard type cards from all elements
                 foreach (var pair in _elementalCardCache)
                 {
-                    if (pair.Key != ElementType.None && pair.Value != null)
-                        allCards.AddRange(pair.Value);
-                }
-                
-                List<Entity> shuffled = ShuffleList(allCards);
-                
-                // Add more cards until we reach the deck size
-                int index = 0;
-                while (deck.Count < deckSize && index < shuffled.Count)
-                {
-                    // Skip if this card is already in the deck
-                    bool alreadyInDeck = false;
-                    foreach (var existingCard in deck)
+                    if (pair.Key != ElementType.None && pair.Value != null && pair.Value.Count > 0)
                     {
-                        CardInfoComponent existingInfo = existingCard.GetComponent<CardInfoComponent>();
-                        CardInfoComponent newInfo = shuffled[index].GetComponent<CardInfoComponent>();
-                        
-                        if (existingInfo != null && newInfo != null && existingInfo.KeyName == newInfo.KeyName)
+                        foreach (var card in pair.Value)
                         {
-                            alreadyInDeck = true;
-                            break;
+                            if (card != null)
+                            {
+                                CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                                if (cardInfo != null && cardInfo.Type == CardType.ElementalCard)
+                                {
+                                    allElementalCards.Add(card);
+                                }
+                            }
                         }
                     }
+                }
+                
+                if (allElementalCards.Count > 0)
+                {
+                    List<Entity> shuffled = ShuffleList(allElementalCards);
                     
-                    if (!alreadyInDeck)
+                    // Add more cards until we reach the deck size
+                    int index = 0;
+                    while (deck.Count < deckSize && index < shuffled.Count)
                     {
-                        deck.Add(CloneEntity(shuffled[index]));
+                        // Skip if this card is already in the deck
+                        bool alreadyInDeck = false;
+                        CardInfoComponent newInfo = shuffled[index].GetComponent<CardInfoComponent>();
+                        
+                        if (newInfo != null && !string.IsNullOrEmpty(newInfo.KeyName))
+                        {
+                            foreach (var existingCard in deck)
+                            {
+                                CardInfoComponent existingInfo = existingCard.GetComponent<CardInfoComponent>();
+                                
+                                if (existingInfo != null && existingInfo.KeyName == newInfo.KeyName)
+                                {
+                                    alreadyInDeck = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!alreadyInDeck)
+                        {
+                            deck.Add(CloneEntity(shuffled[index]));
+                        }
+                        
+                        index++;
                     }
-                    
-                    index++;
                 }
             }
             
@@ -426,96 +572,197 @@ namespace RunTime
             {
                 deck = deck.GetRange(0, deckSize);
             }
+            
+            Debug.Log($"[LoadCardData] Created balanced deck with {deck.Count} ElementalCard cards");
         }
         
         /// <summary>
         /// Create a fully random deck without balancing
+        /// Only uses ElementalCard type cards
         /// </summary>
         private void CreateFullyRandomDeck(List<Entity> deck, int deckSize)
         {
-            // Get all elemental cards and shuffle them
-            List<Entity> allCards = new List<Entity>();
+            // Get all elemental cards and filter to only ElementalCard type
+            List<Entity> allElementalCards = new List<Entity>();
+    
             foreach (var pair in _elementalCardCache)
             {
-                if (pair.Key != ElementType.None && pair.Value != null)
-                    allCards.AddRange(pair.Value);
+                if (pair.Key != ElementType.None && pair.Value != null && pair.Value.Count > 0)
+                {
+                    foreach (var card in pair.Value)
+                    {
+                        if (card != null)
+                        {
+                            CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                            if (cardInfo != null && cardInfo.Type == CardType.ElementalCard)
+                            {
+                                allElementalCards.Add(card);
+                            }
+                        }
+                    }
+                }
             }
-            
-            // Add special cards
-            if (_cardTypeCache.ContainsKey(CardType.DivineBeast) && _cardTypeCache[CardType.DivineBeast] != null)
-                allCards.AddRange(_cardTypeCache[CardType.DivineBeast]);
-                
-            if (_cardTypeCache.ContainsKey(CardType.SpiritAnimal) && _cardTypeCache[CardType.SpiritAnimal] != null)
-                allCards.AddRange(_cardTypeCache[CardType.SpiritAnimal]);
-            
-            // Shuffle the cards
-            List<Entity> shuffled = ShuffleList(allCards);
-            
-            // Add cards up to the deck size
-            for (int i = 0; i < Mathf.Min(deckSize, shuffled.Count); i++)
+    
+            if (allElementalCards.Count > 0)
             {
-                deck.Add(CloneEntity(shuffled[i]));
+                // Shuffle the cards
+                List<Entity> shuffled = ShuffleList(allElementalCards);
+        
+                // Add cards up to the deck size
+                for (int i = 0; i < Mathf.Min(deckSize, shuffled.Count); i++)
+                {
+                    deck.Add(CloneEntity(shuffled[i]));
+                }
+        
+                Debug.Log($"[LoadCardData] Created fully random deck with {deck.Count} ElementalCard cards");
+            }
+            else
+            {
+                Debug.LogError("[LoadCardData] No ElementalCard cards available to create a deck!");
             }
         }
         
         /// <summary>
         /// Create a deck focused on a specific element
+        /// Only uses ElementalCard type cards
         /// </summary>
         private void CreateElementFocusedDeck(List<Entity> deck, ElementType focusElement, int deckSize)
         {
+            // Filter focus element cards to only include ElementalCard type
+            List<Entity> focusElementCards = new List<Entity>();
+            
+            if (_elementalCardCache.ContainsKey(focusElement) && 
+                _elementalCardCache[focusElement] != null && 
+                _elementalCardCache[focusElement].Count > 0)
+            {
+                foreach (var card in _elementalCardCache[focusElement])
+                {
+                    if (card != null)
+                    {
+                        CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                        if (cardInfo != null && cardInfo.Type == CardType.ElementalCard)
+                        {
+                            focusElementCards.Add(card);
+                        }
+                    }
+                }
+            }
+            if (focusElementCards.Count == 0)
+            {
+                Debug.LogWarning($"[LoadCardData] No ElementalCard cards found for element {focusElement}! Falling back to balanced deck.");
+                CreateBalancedRandomDeck(deck, deckSize);
+                return;
+            }
+            
             // Calculate card distribution
             int focusCards = Mathf.FloorToInt(deckSize * 0.6f); // 60% focus element
             int supportCards = deckSize - focusCards; // 40% other elements
             
             // Add focus element cards
-            if (!_elementalCardCache.ContainsKey(focusElement) || _elementalCardCache[focusElement] == null)
+            List<Entity> shuffledFocusCards = ShuffleList(focusElementCards);
+            for (int i = 0; i < Mathf.Min(focusCards, shuffledFocusCards.Count); i++)
             {
-                Debug.LogWarning($"[LoadCardData] No cards found for element {focusElement}! Falling back to balanced deck.");
-                CreateBalancedRandomDeck(deck, deckSize);
-                return;
-            }
-            
-            List<Entity> focusElementCards = ShuffleList(_elementalCardCache[focusElement]);
-            for (int i = 0; i < Mathf.Min(focusCards, focusElementCards.Count); i++)
-            {
-                deck.Add(CloneEntity(focusElementCards[i]));
+                deck.Add(CloneEntity(shuffledFocusCards[i]));
             }
             
             // Get support elements based on the Wu Xing cycle
             ElementType supportElement1 = GetGeneratingElement(focusElement); // Element that generates this one
             ElementType supportElement2 = GetGeneratedElement(focusElement); // Element generated by this one
             
-            // Add support element cards
+            // Add support element cards (ElementalCard type only)
             List<Entity> supportElementCards = new List<Entity>();
             
-            if (_elementalCardCache.ContainsKey(supportElement1) && _elementalCardCache[supportElement1] != null)
-                supportElementCards.AddRange(_elementalCardCache[supportElement1]);
-                
-            if (_elementalCardCache.ContainsKey(supportElement2) && _elementalCardCache[supportElement2] != null)
-                supportElementCards.AddRange(_elementalCardCache[supportElement2]);
-            
-            // Add some supporting special cards
-            if (_cardTypeCache.ContainsKey(CardType.DivineBeast) && _cardTypeCache[CardType.DivineBeast] != null)
-                supportElementCards.AddRange(_cardTypeCache[CardType.DivineBeast]);
-                
-            if (_cardTypeCache.ContainsKey(CardType.SpiritAnimal) && _cardTypeCache[CardType.SpiritAnimal] != null)
-                supportElementCards.AddRange(_cardTypeCache[CardType.SpiritAnimal]);
-            
-            // Shuffle and add support cards
-            List<Entity> shuffledSupport = ShuffleList(supportElementCards);
-            for (int i = 0; i < Mathf.Min(supportCards, shuffledSupport.Count); i++)
+            // Process first support element
+            if (_elementalCardCache.ContainsKey(supportElement1) && 
+                _elementalCardCache[supportElement1] != null && 
+                _elementalCardCache[supportElement1].Count > 0)
             {
-                deck.Add(CloneEntity(shuffledSupport[i]));
+                foreach (var card in _elementalCardCache[supportElement1])
+                {
+                    if (card != null)
+                    {
+                        CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                        if (cardInfo != null && cardInfo.Type == CardType.ElementalCard)
+                        {
+                            supportElementCards.Add(card);
+                        }
+                    }
+                }
+            }
+            
+            // Process second support element
+            if (_elementalCardCache.ContainsKey(supportElement2) && 
+                _elementalCardCache[supportElement2] != null && 
+                _elementalCardCache[supportElement2].Count > 0)
+            {
+                foreach (var card in _elementalCardCache[supportElement2])
+                {
+                    if (card != null)
+                    {
+                        CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                        if (cardInfo != null && cardInfo.Type == CardType.ElementalCard)
+                        {
+                            supportElementCards.Add(card);
+                        }
+                    }
+                }
+            }
+            
+            if (supportElementCards.Count > 0)
+            {
+                // Shuffle and add support cards
+                List<Entity> shuffledSupport = ShuffleList(supportElementCards);
+                for (int i = 0; i < Mathf.Min(supportCards, shuffledSupport.Count); i++)
+                {
+                    deck.Add(CloneEntity(shuffledSupport[i]));
+                }
             }
             
             // Add more focus element cards if we still need cards
-            if (deck.Count < deckSize && focusElementCards.Count > focusCards)
+            if (deck.Count < deckSize && shuffledFocusCards.Count > focusCards)
             {
-                for (int i = focusCards; i < Mathf.Min(deckSize - deck.Count + focusCards, focusElementCards.Count); i++)
+                for (int i = focusCards; i < Mathf.Min(deckSize - deck.Count + focusCards, shuffledFocusCards.Count); i++)
                 {
-                    deck.Add(CloneEntity(focusElementCards[i]));
+                    deck.Add(CloneEntity(shuffledFocusCards[i]));
                 }
             }
+            
+            // Fallback for any remaining slots
+            if (deck.Count < deckSize)
+            {
+                List<Entity> allElementalCards = new List<Entity>();
+                
+                // Collect all ElementalCard type cards from all elements
+                foreach (var element in _elementalCardCache.Values)
+                {
+                    if (element != null && element.Count > 0)
+                    {
+                        foreach (var card in element)
+                        {
+                            if (card != null)
+                            {
+                                CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                                if (cardInfo != null && cardInfo.Type == CardType.ElementalCard)
+                                {
+                                    allElementalCards.Add(card);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (allElementalCards.Count > 0)
+                {
+                    List<Entity> shuffled = ShuffleList(allElementalCards);
+                    
+                    while (deck.Count < deckSize && shuffled.Count > 0)
+                    {
+                        deck.Add(CloneEntity(shuffled[deck.Count % shuffled.Count]));
+                    }
+                }
+            }
+            
+            Debug.Log($"[LoadCardData] Created {focusElement} focused deck with {deck.Count} ElementalCard cards");
         }
         
         /// <summary>
@@ -661,7 +908,11 @@ namespace RunTime
             List<Entity> clonedList = new List<Entity>();
             foreach (var entity in originalList)
             {
-                clonedList.Add(CloneEntity(entity));
+                Entity clone = CloneEntity(entity);
+                if (clone != null)
+                {
+                    clonedList.Add(clone);
+                }
             }
             
             return clonedList;

@@ -60,7 +60,7 @@ namespace Systems
                     supportCard.CurrentCooldown <= 0)
                 {
                     // Activate the card
-                    supportCard.Effect.Apply(null); // OnEntry effects typically don't need a target
+                    supportCard.Effect.Apply(null); 
                     supportCard.IsActive = true;
                     supportCard.CurrentCooldown = supportCard.CooldownTime;
                 }

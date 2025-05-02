@@ -21,7 +21,7 @@ namespace Components
         }
         
         /// <summary>
-        /// Get the NapAm name
+        /// Get the NapAm name in English
         /// </summary>
         public string GetNapAmName()
         {
@@ -58,8 +58,9 @@ namespace Components
                         case MetalNapAm.Reflection: return "Phản Chiếu";
                         case MetalNapAm.Spirit: return "Linh Khí";
                         case MetalNapAm.Calmness: return "Trầm Tĩnh";
+                        default: return "Kim Không Xác Định";
                     }
-                    break;
+                    
                 case ElementType.Wood:
                     switch ((WoodNapAm)_napAmIndex)
                     {
@@ -69,11 +70,48 @@ namespace Components
                         case WoodNapAm.Regeneration: return "Tái Sinh";
                         case WoodNapAm.Toxin: return "Độc Tố";
                         case WoodNapAm.Shelter: return "Che Chắn";
+                        default: return "Mộc Không Xác Định";
                     }
-                    break;
-                // Similar cases for other elements...
+                    
+                case ElementType.Water:
+                    switch ((WaterNapAm)_napAmIndex)
+                    {
+                        case WaterNapAm.Adaptation: return "Thích Nghi";
+                        case WaterNapAm.Ice: return "Băng Giá";
+                        case WaterNapAm.Flow: return "Dòng Chảy";
+                        case WaterNapAm.Mist: return "Sương Mù";
+                        case WaterNapAm.Reflection: return "Phản Ánh";
+                        case WaterNapAm.Purification: return "Thanh Tẩy";
+                        default: return "Thủy Không Xác Định";
+                    }
+                    
+                case ElementType.Fire:
+                    switch ((FireNapAm)_napAmIndex)
+                    {
+                        case FireNapAm.Burning: return "Thiêu Đốt";
+                        case FireNapAm.Explosion: return "Bùng Nổ";
+                        case FireNapAm.Passion: return "Nhiệt Huyết";
+                        case FireNapAm.Light: return "Ánh Sáng";
+                        case FireNapAm.Forging: return "Rèn Luyện";
+                        case FireNapAm.Incineration: return "Thiêu Rụi";
+                        default: return "Hỏa Không Xác Định";
+                    }
+                    
+                case ElementType.Earth:
+                    switch ((EarthNapAm)_napAmIndex)
+                    {
+                        case EarthNapAm.Solidity: return "Kiên Cố";
+                        case EarthNapAm.Gravity: return "Trọng Lực";
+                        case EarthNapAm.Fertility: return "Màu Mỡ";
+                        case EarthNapAm.Volcano: return "Núi Lửa";
+                        case EarthNapAm.Crystal: return "Tinh Thể";
+                        case EarthNapAm.Terra: return "Đại Địa";
+                        default: return "Thổ Không Xác Định";
+                    }
+                    
+                default:
+                    return "Nạp Âm Không Xác Định";
             }
-            return "Unknown";
         }
         
         /// <summary>
@@ -83,6 +121,22 @@ namespace Components
         {
             // This is a simplified implementation. In a full game, each NapAm would have its own power level.
             return (_napAmIndex % 3) + 1; // Values between 1 and 3 for simplicity
+        }
+        
+        /// <summary>
+        /// Get the element type for this NapAm
+        /// </summary>
+        public ElementType GetElementType()
+        {
+            return _elementType;
+        }
+        
+        /// <summary>
+        /// Get the NapAm index
+        /// </summary>
+        public int GetNapAmIndex()
+        {
+            return _napAmIndex;
         }
     }
 }

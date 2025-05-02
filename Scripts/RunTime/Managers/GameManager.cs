@@ -41,6 +41,9 @@ namespace RunTime
         private int _maxPlayerHealth = 50;
         private int _playerGold = 0;
         
+        // Flags
+        private bool _isInitialized = false;
+        
         [Header("References")]
         [SerializeField] private GameObject battleScreen;
         
@@ -54,9 +57,17 @@ namespace RunTime
         
         /// <summary>
         /// Initialize the game systems
+        /// This must be called before starting a game
         /// </summary>
         private void InitializeGame()
         {
+            // Avoid duplicate initialization
+            if (_isInitialized)
+            {
+                Debug.Log("Game already initialized, skipping...");
+                return;
+            }
+            
             Debug.Log("Initializing game systems...");
             
             // Create ECS components
@@ -77,11 +88,36 @@ namespace RunTime
             
             // Create factories
             _cardFactory = new CardFactory(_entityManager);
-            // _scriptableObjectFactory = new ScriptableObjectFactory(_entityManager);
+            
+            // Initialize ScriptableObjectFactory
+            if (ScriptableObjectFactory.HasInstance && !ScriptableObjectFactory.Instance.IsInitialized)
+            {
+                ScriptableObjectFactory.Instance.Initialize(_entityManager);
+            }
+            else if (!ScriptableObjectFactory.HasInstance)
+            {
+                _scriptableObjectFactory = ScriptableObjectFactory.Instance;
+                _scriptableObjectFactory.Initialize(_entityManager);
+            }
+            else
+            {
+                _scriptableObjectFactory = ScriptableObjectFactory.Instance;
+            }
+            
+            // Initialize LoadCardData with EntityManager
+            if (LoadCardData.HasInstance && !LoadCardData.Instance.IsInitialized)
+            {
+                LoadCardData.Instance.Initialize(_entityManager);
+            }
+            else if (!LoadCardData.HasInstance)
+            {
+                LoadCardData.Instance.Initialize(_entityManager);
+            }
             
             // Set initial season
             _elementInteractionSystem.SetSeason(_currentSeason);
             
+            _isInitialized = true;
             Debug.Log("Game systems initialized successfully!");
         }
         
@@ -101,35 +137,61 @@ namespace RunTime
             }
         }
         
+        /// <summary>
+        /// Start a new game, initializing player and creating a deck
+        /// </summary>
         public void StartNewGame()
         {
             Debug.Log("Starting new game...");
-    
+            
+            // Ensure game is initialized
+            if (!_isInitialized)
+            {
+                InitializeGame();
+            }
+            
+            // Ensure LoadCardData is initialized and load all cards
+            if (!LoadCardData.Instance.IsInitialized)
+            {
+                LoadCardData.Instance.Initialize(_entityManager);
+            }
             LoadCardData.Instance.LoadAllCards();
-    
+            
             // Reset player stats
             _playerHealth = _maxPlayerHealth;
             _playerGold = 0;
-    
+            
             // Create player entity
             _playerEntity = CreatePlayerEntity();
+            
+            // Create a sample deck
             List<Entity> deck = CreateSampleDeck();
-    
-            foreach (var card in deck)
+            
+            if (deck != null && deck.Count > 0)
             {
-                _cardSystem.AddCardToDeck(card);
+                foreach (var card in deck)
+                {
+                    if (card != null)
+                    {
+                        _cardSystem.AddCardToDeck(card);
+                    }
+                }
+                
+                // Shuffle the deck
+                _cardSystem.ShuffleDeck();
+                
+                Debug.Log("New game started successfully!");
+                StartBattle("medium");
             }
-    
-            // Shuffle the deck
-            _cardSystem.ShuffleDeck();
-    
-            Debug.Log("New game started successfully!");
-            StartBattle("medium");
+            else
+            {
+                Debug.LogError("Failed to create deck! Game cannot start.");
+            }
         }
         
-         /// <summary>
+        /// <summary>
         /// Create a random deck for the player
-        /// Modified to use LoadCardData for randomized deck generation each playthrough
+        /// Uses LoadCardData to create a balanced deck of random cards
         /// </summary>
         private List<Entity> CreateSampleDeck()
         {
@@ -149,50 +211,53 @@ namespace RunTime
                 deckSize = PlayerPrefs.GetInt("DeckSize");
             }
             
-            List<Entity> deck = this.CreateRandomStarterDeck(deckTheme, deckSize);
+            List<Entity> deck = null;
+            
+            // First attempt: Use LoadCardData to create a random deck
+            try
+            {
+                if (LoadCardData.HasInstance && LoadCardData.Instance.IsInitialized)
+                {
+                    deck = LoadCardData.Instance.CreateRandomStarterDeck(deckTheme, deckSize);
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"Error creating deck with LoadCardData: {e.Message}");
+                deck = null;
+            }
+            
+            // Second attempt: Use CardFactory as fallback
             if (deck == null || deck.Count == 0)
             {
                 Debug.LogWarning("Failed to create deck using LoadCardData, falling back to manual creation");
-                deck = new List<Entity>();
-                bool loadedFromResources = false;
                 
                 try
                 {
-                    string[] cardPaths = new string[]
+                    // Use CardFactory to create a basic deck
+                    if (_cardFactory != null)
                     {
-                        "Cards/Metal_SwordQi_Card",
-                        "Cards/Metal_Hardness_Card",
-                        "Cards/Wood_Toxin_Card",
-                        "Cards/Wood_Regeneration_Card",
-                        "Cards/Water_Ice_Card",
-                        "Cards/Fire_Burning_Card",
-                        "Cards/Earth_Solidity_Card",
-                        "Cards/Special_Rat_Card"
-                    };
-                    
-                    foreach (var path in cardPaths)
+                        deck = _cardFactory.CreateSampleDeck();
+                        Debug.Log("Created basic deck using CardFactory");
+                    }
+                    else
                     {
-                        var cardData = Resources.Load<Data.CardDataSO>(path);
-                        if (cardData)
-                        {
-                            Entity card = _scriptableObjectFactory.CreateCardFromSO(cardData);
-                            deck.Add(card);
-                            loadedFromResources = true;
-                        }
+                        Debug.LogError("CardFactory is null, cannot create deck!");
+                        deck = new List<Entity>();
                     }
                 }
                 catch (System.Exception e)
                 {
-                    Debug.LogWarning($"Error loading cards from resources: {e.Message}");
-                    loadedFromResources = false;
+                    Debug.LogError($"Error creating deck with CardFactory: {e.Message}");
+                    deck = new List<Entity>();
                 }
-                
-                // If couldn't load from resources, create cards manually
-                if (!loadedFromResources || deck.Count == 0)
-                {
-                    Debug.Log("Creating cards manually...");
-                    deck = _cardFactory.CreateSampleDeck();
-                }
+            }
+            
+            // Ensure deck has at least some cards
+            if (deck == null || deck.Count == 0)
+            {
+                Debug.LogError("Failed to create any cards for the deck!");
+                return new List<Entity>();
             }
             
             Debug.Log($"Created deck with {deck.Count} cards for new game");
@@ -345,7 +410,7 @@ namespace RunTime
             // Add element component (random element)
             ElementComponent element = new ElementComponent
             {
-                Element = (ElementType)Random.Range(0, 5) // 0-4 = all elements
+                Element = (ElementType)Random.Range(1, 6) // 1-5 = all elements except None(0)
             };
             enemy.AddComponent(element);
             
@@ -506,7 +571,7 @@ namespace RunTime
                 ElementComponent enemyElement = _enemyEntity.GetComponent<ElementComponent>();
                 
                 Debug.Log($"Enemy Health: {enemyStats.Health}/{enemyStats.MaxHealth}");
-                Debug.Log($"Enemy Element: {enemyElement?.GetElementName() ?? "None"}");
+                Debug.Log($"Enemy Element: {enemyElement?.Element.ToString() ?? "None"}");
             }
         }
         
