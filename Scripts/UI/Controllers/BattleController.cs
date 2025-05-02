@@ -510,7 +510,7 @@ namespace UI
             // Play first card
             if (selectedCard1 != null && enemyEntity != null)
             {
-                battleSystem.PlayCard(selectedCard1, enemyEntity);
+                // battleSystem.PlayCard(selectedCard1, enemyEntity);
                 playerEnergy -= GetCardCost(selectedCard1);
                 
                 CardInfoComponent cardInfo = selectedCard1.GetComponent<CardInfoComponent>();
@@ -523,7 +523,7 @@ namespace UI
             // Play second card
             if (selectedCard2 != null && enemyEntity != null)
             {
-                battleSystem.PlayCard(selectedCard2, enemyEntity);
+                // battleSystem.PlayCard(selectedCard2, enemyEntity);
                 playerEnergy -= GetCardCost(selectedCard2);
                 
                 CardInfoComponent cardInfo = selectedCard2.GetComponent<CardInfoComponent>();

@@ -2,41 +2,64 @@
 using Components;
 using Core;
 using Core.Utils;
+using Systems.States;
+using UnityEngine;
 
 namespace Systems
 {
     /// <summary>
-    /// System that handles battle logic
+    /// System that handles battle logic with state machine integration
     /// </summary>
     public class BattleSystem : Core.System
     {
         // References to other systems
-        private ElementInteractionSystem elementInteractionSystem;
-        private CardSystem cardSystem;
+        private ElementInteractionSystem _elementInteractionSystem;
+        private CardSystem _cardSystem;
+        private SupportCardSystem _supportCardSystem;
+        
+        // State machine
+        private BattleStateMachine _stateMachine;
         
         // Battle state
-        private Entity player;
-        private Entity enemy;
-        private List<Entity> playedCards = new List<Entity>();
+        private Entity _playerEntity;
+        private Entity _enemyEntity;
+        private List<Entity> _selectedCards = new List<Entity>();
+        private List<Entity> _playedCards = new List<Entity>();
+        
+        // Battle stats
+        private int _currentTurn = 1;
+        private int _playerEnergy = 3;
+        private int _maxPlayerEnergy = 3;
         
         // Constructor
-        public BattleSystem(EntityManager entityManager, ElementInteractionSystem elementInteractionSystem, CardSystem cardSystem) : base(entityManager)
+        public BattleSystem(EntityManager entityManager, ElementInteractionSystem elementInteractionSystem, 
+                            CardSystem cardSystem, SupportCardSystem supportCardSystem) : base(entityManager)
         {
-            this.elementInteractionSystem = elementInteractionSystem;
-            this.cardSystem = cardSystem;
+            _elementInteractionSystem = elementInteractionSystem;
+            _cardSystem = cardSystem;
+            _supportCardSystem = supportCardSystem;
+            
+            // Create the state machine
+            _stateMachine = new BattleStateMachine(this);
         }
         
         /// <summary>
         /// Initialize a battle
         /// </summary>
-        public void InitializeBattle(Entity player, Entity enemy)
+        public void InitializeBattle()
         {
-            this.player = player;
-            this.enemy = enemy;
-            playedCards.Clear();
+            Debug.Log("Initializing battle...");
+            
+            // Reset battle state
+            _currentTurn = 1;
+            _playerEnergy = _maxPlayerEnergy;
+            _selectedCards.Clear();
+            _playedCards.Clear();
             
             // Draw initial hand
-            cardSystem.DrawCards(5);
+            _cardSystem.DrawCards(5);
+            
+            Debug.Log("Battle initialized!");
         }
         
         /// <summary>
@@ -44,26 +67,46 @@ namespace Systems
         /// </summary>
         public override void Update(float deltaTime)
         {
-            // Battle logic updates
-            // This would be more complex in a real implementation
+            // Update the state machine
+            _stateMachine.Update();
         }
         
         /// <summary>
-        /// Start a new turn
+        /// Start the battle
         /// </summary>
-        public void StartNewTurn()
+        public void StartBattle(Entity player, Entity enemy)
         {
-            // Clear played cards list
-            playedCards.Clear();
+            _playerEntity = player;
+            _enemyEntity = enemy;
             
-            // Discard cards in play zone
-            cardSystem.DiscardPlayZone();
+            // Start the state machine
+            _stateMachine.Start();
+        }
+        
+        /// <summary>
+        /// Start a new player turn
+        /// </summary>
+        public void StartPlayerTurn()
+        {
+            Debug.Log($"Starting player turn {_currentTurn}");
             
-            // Draw a new card
-            cardSystem.DrawCard();
+            // Reset player energy
+            _playerEnergy = _maxPlayerEnergy;
+            
+            // Draw a card if hand is less than 5
+            if (_cardSystem.GetHand().Count < 5)
+            {
+                _cardSystem.DrawCard();
+            }
+            
+            // Reset selected cards
+            _selectedCards.Clear();
+            
+            // Clear played cards for this turn
+            _playedCards.Clear();
             
             // Update support card cooldowns
-            List<Entity> supportZone = cardSystem.GetSupportZone();
+            List<Entity> supportZone = _cardSystem.GetSupportZone();
             foreach (var card in supportZone)
             {
                 SupportCardComponent supportComponent = card.GetComponent<SupportCardComponent>();
@@ -75,24 +118,189 @@ namespace Systems
         }
         
         /// <summary>
-        /// Play a card
+        /// End the player's turn
         /// </summary>
-        public void PlayCard(Entity card, Entity target)
+        public void EndPlayerTurn()
         {
-            if (card == null || target == null)
+            // Discard cards in play zone
+            _cardSystem.DiscardPlayZone();
+            
+            // Reset played cards list
+            _playedCards.Clear();
+        }
+        
+        /// <summary>
+        /// Start the enemy's turn
+        /// </summary>
+        public void StartEnemyTurn()
+        {
+            Debug.Log("Starting enemy turn");
+            
+            // Any enemy turn initialization logic
+        }
+        
+        /// <summary>
+        /// Enemy performs its action
+        /// </summary>
+        public void PerformEnemyAction()
+        {
+            Debug.Log("Enemy performing action");
+            
+            if (_playerEntity == null || _enemyEntity == null)
                 return;
             
-            // Move the card to the play zone
-            cardSystem.PlayCard(card);
+            StatsComponent playerStats = _playerEntity.GetComponent<StatsComponent>();
+            StatsComponent enemyStats = _enemyEntity.GetComponent<StatsComponent>();
             
-            // Add to played cards list
-            playedCards.Add(card);
+            if (playerStats == null || enemyStats == null)
+                return;
             
-            // Apply card effects
-            ApplyCardEffects(card, target);
+            // Simple AI: 70% chance to attack, 30% chance to defend
+            if (Random.value < 0.7f)
+            {
+                // Attack
+                float damage = enemyStats.Attack;
+                
+                // Apply defense
+                float damageReduction = playerStats.Defense / 100f;
+                damage = Mathf.Max(0, damage * (1 - damageReduction));
+                
+                // Apply damage
+                playerStats.Health -= (int)damage;
+                if (playerStats.Health < 0)
+                    playerStats.Health = 0;
+                
+                Debug.Log($"Enemy attacks for {(int)damage} damage!");
+            }
+            else
+            {
+                // Defend
+                enemyStats.Defense += 2;
+                
+                Debug.Log("Enemy increases its defense by 2!");
+            }
+        }
+        
+        /// <summary>
+        /// End the enemy's turn
+        /// </summary>
+        public void EndEnemyTurn()
+        {
+            Debug.Log("Ending enemy turn");
             
-            // Check for support card activations
-            CheckSupportCardActivations(card, target);
+            // Increment turn counter
+            _currentTurn++;
+        }
+        
+        /// <summary>
+        /// Select a card to play
+        /// </summary>
+        public void SelectCard(Entity card)
+        {
+            if (card == null)
+                return;
+                
+            // Check if card is already selected
+            if (_selectedCards.Contains(card))
+            {
+                _selectedCards.Remove(card);
+                Debug.Log("Card deselected");
+                return;
+            }
+            
+            // Check if we already have 2 cards selected
+            if (_selectedCards.Count >= 2)
+            {
+                Debug.Log("Already have 2 cards selected, deselect one first");
+                return;
+            }
+            
+            // Get card cost
+            int cardCost = 1; // Default cost
+            CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+            if (cardInfo != null)
+            {
+                cardCost = cardInfo.Cost;
+            }
+            
+            // Check if we have enough energy
+            int totalCost = 0;
+            foreach (var selectedCard in _selectedCards)
+            {
+                CardInfoComponent selectedCardInfo = selectedCard.GetComponent<CardInfoComponent>();
+                if (selectedCardInfo != null)
+                {
+                    totalCost += selectedCardInfo.Cost;
+                }
+            }
+            
+            totalCost += cardCost;
+            
+            if (_playerEnergy < totalCost)
+            {
+                Debug.Log("Not enough energy to select this card");
+                return;
+            }
+            
+            // Add to selected cards
+            _selectedCards.Add(card);
+            Debug.Log("Card selected");
+            
+            // If we have 2 cards or this card is a support card, trigger card resolution
+            if (_selectedCards.Count == 2 || card.HasComponent<SupportCardComponent>())
+            {
+                // Change state to card resolution
+                _stateMachine.ChangeState(BattleStateType.CardResolution);
+            }
+        }
+        
+        /// <summary>
+        /// Resolve the selected cards
+        /// </summary>
+        public void ResolveSelectedCards()
+        {
+            if (_selectedCards.Count == 0)
+                return;
+                
+            // Check for support cards
+            foreach (var card in _selectedCards)
+            {
+                if (card.HasComponent<SupportCardComponent>())
+                {
+                    // Play as support
+                    _cardSystem.PlayAsSupport(card);
+                    
+                    // Remove from selected cards
+                    _selectedCards.Remove(card);
+                    
+                    Debug.Log("Played card as support");
+                    continue;
+                }
+                
+                // Play the card
+                _cardSystem.PlayCard(card);
+                
+                // Add to played cards
+                _playedCards.Add(card);
+                
+                // Apply card effects
+                ApplyCardEffects(card, _enemyEntity);
+                
+                // Deduct energy
+                CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
+                if (cardInfo != null)
+                {
+                    _playerEnergy -= cardInfo.Cost;
+                }
+                
+                Debug.Log("Played card");
+            }
+            
+            // Update support card system with played cards
+            _supportCardSystem.SetPlayedCards(_playedCards);
+            
+            // Clear selected cards
+            _selectedCards.Clear();
         }
         
         /// <summary>
@@ -116,13 +324,9 @@ namespace Systems
             ElementComponent targetElement = target.GetComponent<ElementComponent>();
             if (targetElement != null)
             {
-                float elementAdvantage = elementInteractionSystem.CalculateElementAdvantage(card, target);
+                float elementAdvantage = _elementInteractionSystem.CalculateElementAdvantage(card, target);
                 baseDamage *= (1 + elementAdvantage);
             }
-            
-            // Apply season effects
-            float seasonBonus = elementInteractionSystem.GetSeasonBonus(element.Element, Season.Spring); // Use current season instead of hardcoded
-            baseDamage *= (1 + seasonBonus);
             
             // Apply defense
             float damageReduction = targetStats.Defense / 100f; // Simple formula, can be more complex
@@ -153,56 +357,56 @@ namespace Systems
                 stats.Health -= damage;
                 if (stats.Health < 0)
                     stats.Health = 0;
+                
+                Debug.Log($"Applied {damage} damage to target");
             }
         }
         
         /// <summary>
         /// Check for support card activations
         /// </summary>
-        private void CheckSupportCardActivations(Entity playedCard, Entity target)
+        public void CheckSupportCards()
         {
-            List<Entity> supportZone = cardSystem.GetSupportZone();
+            // Get current battle state
+            BattleStateType currentState = _stateMachine.GetCurrentStateType();
             
-            foreach (var supportCard in supportZone)
+            // Check for specific support card activations based on the state
+            switch (currentState)
             {
-                SupportCardComponent supportComponent = supportCard.GetComponent<SupportCardComponent>();
-                
-                if (supportComponent != null && supportComponent.CurrentCooldown <= 0)
-                {
-                    // Check activation condition
-                    bool activationConditionMet = false;
-                    
-                    switch (supportComponent.ActivationType)
-                    {
-                        case ActivationType.Recurring:
-                        case ActivationType.Triggered:
-                            // Check if the condition is met
-                            activationConditionMet = supportComponent.Condition.IsMet(supportCard, target, playedCards);
-                            break;
-                        case ActivationType.Reactive:
-                            // Reactive cards activate in response to specific events
-                            // This would be more complex in a real implementation
-                            break;
-                        case ActivationType.Persistent:
-                            // Persistent effects are always active, no need to check
-                            activationConditionMet = true;
-                            break;
-                    }
-                    
-                    if (activationConditionMet)
-                    {
-                        // Activate the support card
-                        supportComponent.Effect.Apply(target);
-                        supportComponent.IsActive = true;
-                        
-                        // Set cooldown if it's not a persistent effect
-                        if (supportComponent.ActivationType != ActivationType.Persistent)
-                        {
-                            supportComponent.CurrentCooldown = supportComponent.CooldownTime;
-                        }
-                    }
-                }
+                case BattleStateType.PlayerTurnStart:
+                    _supportCardSystem.CheckOnTurnStartActivations(_playerEntity);
+                    break;
+                case BattleStateType.PlayerTurnEnd:
+                    _supportCardSystem.CheckOnTurnEndActivations(_playerEntity);
+                    break;
+                case BattleStateType.EnemyTurnStart:
+                    // Could check enemy-specific activations here
+                    break;
+                default:
+                    // Default checks for all states
+                    _supportCardSystem.CheckOnEntryActivations();
+                    break;
             }
+        }
+        
+        /// <summary>
+        /// End the battle
+        /// </summary>
+        public void EndBattle()
+        {
+            Debug.Log("Battle ended");
+            
+            // Additional cleanup or state transitions could happen here
+        }
+        
+        /// <summary>
+        /// Give rewards to the player after a successful battle
+        /// </summary>
+        public void GiveRewards()
+        {
+            Debug.Log("Giving rewards to player");
+            
+            // Reward logic would go here
         }
         
         /// <summary>
@@ -210,8 +414,8 @@ namespace Systems
         /// </summary>
         public bool IsBattleOver()
         {
-            StatsComponent playerStats = player.GetComponent<StatsComponent>();
-            StatsComponent enemyStats = enemy.GetComponent<StatsComponent>();
+            StatsComponent playerStats = _playerEntity?.GetComponent<StatsComponent>();
+            StatsComponent enemyStats = _enemyEntity?.GetComponent<StatsComponent>();
             
             return (playerStats != null && playerStats.Health <= 0) || 
                    (enemyStats != null && enemyStats.Health <= 0);
@@ -225,13 +429,38 @@ namespace Systems
             if (!IsBattleOver())
                 return null;
             
-            StatsComponent playerStats = player.GetComponent<StatsComponent>();
-            StatsComponent enemyStats = enemy.GetComponent<StatsComponent>();
+            StatsComponent playerStats = _playerEntity?.GetComponent<StatsComponent>();
+            StatsComponent enemyStats = _enemyEntity?.GetComponent<StatsComponent>();
             
             if (playerStats != null && playerStats.Health <= 0)
-                return enemy;
+                return _enemyEntity;
             else
-                return player;
+                return _playerEntity;
         }
+        
+        /// <summary>
+        /// Get player entity
+        /// </summary>
+        public Entity GetPlayerEntity() => _playerEntity;
+        
+        /// <summary>
+        /// Get enemy entity
+        /// </summary>
+        public Entity GetEnemyEntity() => _enemyEntity;
+        
+        /// <summary>
+        /// Get the battle state machine
+        /// </summary>
+        public BattleStateMachine GetStateMachine() => _stateMachine;
+        
+        /// <summary>
+        /// Get player energy
+        /// </summary>
+        public int GetPlayerEnergy() => _playerEnergy;
+        
+        /// <summary>
+        /// Get current turn
+        /// </summary>
+        public int GetCurrentTurn() => _currentTurn;
     }
 }

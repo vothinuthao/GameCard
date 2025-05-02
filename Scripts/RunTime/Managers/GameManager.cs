@@ -4,12 +4,14 @@ using Core;
 using Core.Utils;
 using Factories;
 using Systems;
+using Systems.States;
 using UnityEngine;
 
 namespace RunTime
 {
     /// <summary>
     /// Main game manager that ties all the systems together and handles game flow
+    /// Updated to use the new state-based battle system
     /// Using Singleton pattern
     /// </summary>
     public class GameManager : Singleton<GameManager>
@@ -26,6 +28,7 @@ namespace RunTime
         
         // Factories 
         private CardFactory _cardFactory;
+        private SupportCardFactory _supportCardFactory;
         private ScriptableObjectFactory _scriptableObjectFactory;
         
         // Game state
@@ -40,6 +43,8 @@ namespace RunTime
         private int _playerHealth = 50;
         private int _maxPlayerHealth = 50;
         private int _playerGold = 0;
+        private int _playerEnergy = 3;
+        private int _maxPlayerEnergy = 3;
         
         // Flags
         private bool _isInitialized = false;
@@ -78,7 +83,9 @@ namespace RunTime
             _cardSystem = new CardSystem(_entityManager);
             _elementInteractionSystem = new ElementInteractionSystem(_entityManager);
             _supportCardSystem = new SupportCardSystem(_entityManager);
-            _battleSystem = new BattleSystem(_entityManager, _elementInteractionSystem, _cardSystem);
+            
+            // BattleSystem depends on other systems, so create it last
+            _battleSystem = new BattleSystem(_entityManager, _elementInteractionSystem, _cardSystem, _supportCardSystem);
             
             // Add systems to system manager
             _systemManager.AddSystem(_cardSystem);
@@ -88,6 +95,7 @@ namespace RunTime
             
             // Create factories
             _cardFactory = new CardFactory(_entityManager);
+            _supportCardFactory = new SupportCardFactory(_entityManager);
             
             // Initialize ScriptableObjectFactory
             if (ScriptableObjectFactory.HasInstance && !ScriptableObjectFactory.Instance.IsInitialized)
@@ -160,6 +168,7 @@ namespace RunTime
             // Reset player stats
             _playerHealth = _maxPlayerHealth;
             _playerGold = 0;
+            _playerEnergy = _maxPlayerEnergy;
             
             // Create player entity
             _playerEntity = CreatePlayerEntity();
@@ -280,9 +289,11 @@ namespace RunTime
             // Create enemy entity
             _enemyEntity = CreateEnemyEntity(enemyType);
             
-            // Initialize battle
-            _battleSystem.InitializeBattle(_playerEntity, _enemyEntity);
+            // Set battle active flag
             _isBattleActive = true;
+            
+            // Start battle in battle system
+            _battleSystem.StartBattle(_playerEntity, _enemyEntity);
             
             // Show battle screen
             if (battleScreen != null)
@@ -438,6 +449,7 @@ namespace RunTime
                 return;
             }
             
+            // This now needs to handle selection through BattleSystem's state machine
             List<Entity> hand = _cardSystem.GetHand();
             
             if (cardIndex < 0 || cardIndex >= hand.Count)
@@ -447,9 +459,11 @@ namespace RunTime
             }
             
             Entity card = hand[cardIndex];
-            _battleSystem.PlayCard(card, _enemyEntity);
             
-            Debug.Log($"Played card at index {cardIndex}");
+            // Use this method to select a card rather than play it directly
+            _battleSystem.SelectCard(card);
+            
+            Debug.Log($"Selected card at index {cardIndex}");
         }
         
         /// <summary>
@@ -495,53 +509,18 @@ namespace RunTime
                 return;
             }
             
-            _battleSystem.StartNewTurn();
-            Debug.Log("Player turn ended");
-            
-            // Simple enemy AI
-            PerformEnemyTurn();
-            
-            // Start new player turn
-            _battleSystem.StartNewTurn();
-        }
-        
-        /// <summary>
-        /// Perform enemy turn
-        /// </summary>
-        private void PerformEnemyTurn()
-        {
-            if (_playerEntity == null || _enemyEntity == null)
-                return;
-            
-            StatsComponent playerStats = _playerEntity.GetComponent<StatsComponent>();
-            StatsComponent enemyStats = _enemyEntity.GetComponent<StatsComponent>();
-            
-            if (playerStats == null || enemyStats == null)
-                return;
-            
-            // Simple AI: 70% chance to attack, 30% chance to defend
-            if (Random.value < 0.7f)
+            // Use BattleSystem's state machine to change to PlayerTurnEnd state
+            BattleStateMachine stateMachine = _battleSystem.GetStateMachine();
+            if (stateMachine != null)
             {
-                // Attack
-                float damage = enemyStats.Attack;
-                
-                // Apply defense
-                float damageReduction = playerStats.Defense / 100f;
-                damage = Mathf.Max(0, damage * (1 - damageReduction));
-                
-                // Apply damage
-                playerStats.Health -= (int)damage;
-                if (playerStats.Health < 0)
-                    playerStats.Health = 0;
-                
-                Debug.Log($"Enemy attacks for {(int)damage} damage!");
+                stateMachine.ChangeState(BattleStateType.PlayerTurnEnd);
+                Debug.Log("Player turn ended");
             }
             else
             {
-                // Defend
-                enemyStats.Defense += 2;
-                
-                Debug.Log("Enemy increases its defense by 2!");
+                // Fallback if state machine is not available
+                Debug.LogWarning("Battle state machine not available, using direct method");
+                _battleSystem.EndPlayerTurn();
             }
         }
         
@@ -560,6 +539,7 @@ namespace RunTime
             
             Debug.Log($"Player Health: {playerStats.Health}/{playerStats.MaxHealth}");
             Debug.Log($"Player Gold: {_playerGold}");
+            Debug.Log($"Player Energy: {_playerEnergy}/{_maxPlayerEnergy}");
             Debug.Log($"Cards in Deck: {_cardSystem.GetDeck().Count}");
             Debug.Log($"Cards in Hand: {_cardSystem.GetHand().Count}");
             Debug.Log($"Cards in Discard: {_cardSystem.GetDiscardPile().Count}");
@@ -585,12 +565,37 @@ namespace RunTime
             Debug.Log($"Season changed to: {season}");
         }
         
+        /// <summary>
+        /// Get player energy
+        /// </summary>
+        public int GetPlayerEnergy()
+        {
+            return _playerEnergy;
+        }
+        
+        /// <summary>
+        /// Set player energy
+        /// </summary>
+        public void SetPlayerEnergy(int energy)
+        {
+            _playerEnergy = Mathf.Clamp(energy, 0, _maxPlayerEnergy);
+        }
+        
+        /// <summary>
+        /// Reset player energy to max
+        /// </summary>
+        public void ResetPlayerEnergy()
+        {
+            _playerEnergy = _maxPlayerEnergy;
+        }
+        
         // Getters for systems and entities
         public EntityManager GetEntityManager() => _entityManager;
         public CardSystem GetCardSystem() => _cardSystem;
         public BattleSystem GetBattleSystem() => _battleSystem;
         public ElementInteractionSystem GetElementInteractionSystem() => _elementInteractionSystem;
         public SupportCardSystem GetSupportCardSystem() => _supportCardSystem;
+        public SupportCardFactory GetSupportCardFactory() => _supportCardFactory;
         public Entity GetPlayerEntity() => _playerEntity;
         public Entity GetEnemyEntity() => _enemyEntity;
         public Season GetCurrentSeason() => _currentSeason;
