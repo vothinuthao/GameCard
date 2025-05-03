@@ -439,7 +439,6 @@ namespace Editor
             card.defense = _cardDefense;
             card.health = _cardHealth;
             card.speed = _cardSpeed;
-            card.elementType = _cardElement;
             
             // Set Divine Beast specific properties
             card.effectDescription = _effectDescription;
@@ -469,7 +468,6 @@ namespace Editor
             card.defense = _cardDefense;
             card.health = _cardHealth;
             card.speed = _cardSpeed;
-            card.elementType = _cardElement;
             
             // Set Monster specific properties
             card.effects = new MonsterCardDataSO.EffectData[1];
@@ -504,7 +502,6 @@ namespace Editor
             card.defense = _cardDefense;
             card.health = _cardHealth;
             card.speed = _cardSpeed;
-            card.elementType = _cardElement;
             
             // Set Spirit Animal specific properties
             card.zodiacAnimal = _zodiacAnimal;
@@ -536,7 +533,6 @@ namespace Editor
             card.defense = _cardDefense;
             card.health = _cardHealth;
             card.speed = _cardSpeed;
-            card.elementType = _cardElement;
             
             // Set Joker specific properties
             card.effectDescription = _effectDescription;

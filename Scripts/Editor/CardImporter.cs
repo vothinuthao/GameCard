@@ -562,7 +562,7 @@ namespace Editor
                         }
                         else if (cardObj is DivineBeastCardDataSO divineBeast)
                         {
-                            string line = $"{divineBeast.cardId},\"{EscapeCsvField(divineBeast.cardKeyName)}\",\"{EscapeCsvField(divineBeast.cardName)}\",\"{EscapeCsvField(divineBeast.description)}\",{divineBeast.cardType},{divineBeast.rarity},{divineBeast.cost},{divineBeast.attack},{divineBeast.defense},{divineBeast.health},{divineBeast.speed},{divineBeast.elementType}";
+                            string line = $"{divineBeast.cardId},\"{EscapeCsvField(divineBeast.cardKeyName)}\",\"{EscapeCsvField(divineBeast.cardName)}\",\"{EscapeCsvField(divineBeast.description)}\",{divineBeast.cardType},{divineBeast.rarity},{divineBeast.cost},{divineBeast.attack},{divineBeast.defense},{divineBeast.health},{divineBeast.speed}";
                             
                             // Add empty NapAm fields
                             line += ",,,,,";
@@ -577,7 +577,7 @@ namespace Editor
                         }
                         else if (cardObj is SpiritAnimalCardDataSO spiritAnimal)
                         {
-                            string line = $"{spiritAnimal.cardId},\"{EscapeCsvField(spiritAnimal.cardKeyName)}\",\"{EscapeCsvField(spiritAnimal.cardName)}\",\"{EscapeCsvField(spiritAnimal.description)}\",{spiritAnimal.cardType},{spiritAnimal.rarity},{spiritAnimal.cost},{spiritAnimal.attack},{spiritAnimal.defense},{spiritAnimal.health},{spiritAnimal.speed},{spiritAnimal.elementType}";
+                            string line = $"{spiritAnimal.cardId},\"{EscapeCsvField(spiritAnimal.cardKeyName)}\",\"{EscapeCsvField(spiritAnimal.cardName)}\",\"{EscapeCsvField(spiritAnimal.description)}\",{spiritAnimal.cardType},{spiritAnimal.rarity},{spiritAnimal.cost},{spiritAnimal.attack},{spiritAnimal.defense},{spiritAnimal.health},{spiritAnimal.speed}";
                             
                             // Add empty NapAm fields
                             line += ",,,,,";
@@ -589,7 +589,7 @@ namespace Editor
                         }
                         else if (cardObj is JokerCardDataSO joker)
                         {
-                            string line = $"{joker.cardId},\"{EscapeCsvField(joker.cardKeyName)}\",\"{EscapeCsvField(joker.cardName)}\",\"{EscapeCsvField(joker.description)}\",{joker.cardType},{joker.rarity},{joker.cost},{joker.attack},{joker.defense},{joker.health},{joker.speed},{joker.elementType}";
+                            string line = $"{joker.cardId},\"{EscapeCsvField(joker.cardKeyName)}\",\"{EscapeCsvField(joker.cardName)}\",\"{EscapeCsvField(joker.description)}\",{joker.cardType},{joker.rarity},{joker.cost},{joker.attack},{joker.defense},{joker.health},{joker.speed}";
                             
                             // Add empty NapAm fields
                             line += ",,,,,";
@@ -601,7 +601,7 @@ namespace Editor
                         }
                         else if (cardObj is MonsterCardDataSO monster && monster.effects.Length > 0)
                         {
-                            string line = $"{monster.cardId},\"{EscapeCsvField(monster.cardKeyName)}\",\"{EscapeCsvField(monster.cardName)}\",\"{EscapeCsvField(monster.description)}\",{monster.cardType},{monster.rarity},{monster.cost},{monster.attack},{monster.defense},{monster.health},{monster.speed},{monster.elementType}";
+                            string line = $"{monster.cardId},\"{EscapeCsvField(monster.cardKeyName)}\",\"{EscapeCsvField(monster.cardName)}\",\"{EscapeCsvField(monster.description)}\",{monster.cardType},{monster.rarity},{monster.cost},{monster.attack},{monster.defense},{monster.health},{monster.speed}";
                             
                             // Add empty NapAm fields
                             line += ",,,,,";
