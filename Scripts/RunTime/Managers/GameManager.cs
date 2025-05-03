@@ -11,8 +11,7 @@ namespace RunTime
 {
     /// <summary>
     /// Main game manager that ties all the systems together and handles game flow
-    /// Updated to use the new state-based battle system
-    /// Using Singleton pattern
+    /// GameManager chính quản lý tất cả hệ thống và luồng game
     /// </summary>
     public class GameManager : Singleton<GameManager>
     {
@@ -28,13 +27,13 @@ namespace RunTime
         
         // Factories 
         private CardFactory _cardFactory;
-        private SupportCardFactory _supportCardFactory;
         private ScriptableObjectFactory _scriptableObjectFactory;
         
         // Game state
         private Entity _playerEntity;
         private Entity _enemyEntity;
         private bool _isBattleActive = false;
+        private bool _isGameInProgress = false;
         
         // Current season and environment
         private Season _currentSeason = Season.Spring;
@@ -63,6 +62,7 @@ namespace RunTime
         /// <summary>
         /// Initialize the game systems
         /// This must be called before starting a game
+        /// Khởi tạo các hệ thống game, phải được gọi trước khi bắt đầu game
         /// </summary>
         private void InitializeGame()
         {
@@ -79,6 +79,13 @@ namespace RunTime
             _entityManager = new EntityManager();
             _systemManager = new SystemManager();
             
+            // Initialize ScriptableObjectFactory
+            _scriptableObjectFactory = ScriptableObjectFactory.Instance;
+            _scriptableObjectFactory.Initialize(_entityManager);
+            
+            // Create factories
+            _cardFactory = new CardFactory(_entityManager);
+            
             // Create game systems
             _cardSystem = new CardSystem(_entityManager);
             _elementInteractionSystem = new ElementInteractionSystem(_entityManager);
@@ -93,31 +100,8 @@ namespace RunTime
             _systemManager.AddSystem(_supportCardSystem);
             _systemManager.AddSystem(_battleSystem);
             
-            // Create factories
-            _cardFactory = new CardFactory(_entityManager);
-            _supportCardFactory = new SupportCardFactory(_entityManager);
-            
-            // Initialize ScriptableObjectFactory
-            if (ScriptableObjectFactory.HasInstance && !ScriptableObjectFactory.Instance.IsInitialized)
-            {
-                ScriptableObjectFactory.Instance.Initialize(_entityManager);
-            }
-            else if (!ScriptableObjectFactory.HasInstance)
-            {
-                _scriptableObjectFactory = ScriptableObjectFactory.Instance;
-                _scriptableObjectFactory.Initialize(_entityManager);
-            }
-            else
-            {
-                _scriptableObjectFactory = ScriptableObjectFactory.Instance;
-            }
-            
             // Initialize LoadCardData with EntityManager
             if (LoadCardData.HasInstance && !LoadCardData.Instance.IsInitialized)
-            {
-                LoadCardData.Instance.Initialize(_entityManager);
-            }
-            else if (!LoadCardData.HasInstance)
             {
                 LoadCardData.Instance.Initialize(_entityManager);
             }
@@ -129,7 +113,9 @@ namespace RunTime
             Debug.Log("Game systems initialized successfully!");
         }
         
-        // Update is called once per frame
+        /// <summary>
+        /// Update game state
+        /// </summary>
         private void Update()
         {
             if (_isBattleActive)
@@ -147,6 +133,7 @@ namespace RunTime
         
         /// <summary>
         /// Start a new game, initializing player and creating a deck
+        /// Bắt đầu game mới, khởi tạo người chơi và tạo bộ bài
         /// </summary>
         public void StartNewGame()
         {
@@ -158,12 +145,11 @@ namespace RunTime
                 InitializeGame();
             }
             
-            // Ensure LoadCardData is initialized and load all cards
-            if (!LoadCardData.Instance.IsInitialized)
+            // Load all cards using LoadCardData
+            if (LoadCardData.HasInstance && LoadCardData.Instance.IsInitialized)
             {
-                LoadCardData.Instance.Initialize(_entityManager);
+                LoadCardData.Instance.LoadAllCards();
             }
-            LoadCardData.Instance.LoadAllCards();
             
             // Reset player stats
             _playerHealth = _maxPlayerHealth;
@@ -173,11 +159,12 @@ namespace RunTime
             // Create player entity
             _playerEntity = CreatePlayerEntity();
             
-            // Create a sample deck
-            List<Entity> deck = CreateSampleDeck();
+            // Create a starter deck
+            List<Entity> deck = CreateStarterDeck();
             
             if (deck != null && deck.Count > 0)
             {
+                // Add cards to player's deck
                 foreach (var card in deck)
                 {
                     if (card != null)
@@ -189,6 +176,9 @@ namespace RunTime
                 // Shuffle the deck
                 _cardSystem.ShuffleDeck();
                 
+                // Set game in progress
+                _isGameInProgress = true;
+                
                 Debug.Log("New game started successfully!");
                 StartBattle("medium");
             }
@@ -199,12 +189,12 @@ namespace RunTime
         }
         
         /// <summary>
-        /// Create a random deck for the player
-        /// Uses LoadCardData to create a balanced deck of random cards
+        /// Create a starter deck for the player
+        /// Tạo bộ bài khởi đầu cho người chơi
         /// </summary>
-        private List<Entity> CreateSampleDeck()
+        private List<Entity> CreateStarterDeck()
         {
-            Debug.Log("Creating random deck for new game...");
+            Debug.Log("Creating starter deck for new game...");
             
             // Get player preference for deck theme if available (default to "balanced")
             string deckTheme = "balanced";
@@ -222,51 +212,44 @@ namespace RunTime
             
             List<Entity> deck = null;
             
-            // First attempt: Use LoadCardData to create a random deck
-            try
+            // Try to create themed deck based on preference
+            switch (deckTheme.ToLower())
             {
-                if (LoadCardData.HasInstance && LoadCardData.Instance.IsInitialized)
-                {
-                    deck = LoadCardData.Instance.CreateRandomStarterDeck(deckTheme, deckSize);
-                }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"Error creating deck with LoadCardData: {e.Message}");
-                deck = null;
-            }
-            
-            // Second attempt: Use CardFactory as fallback
-            if (deck == null || deck.Count == 0)
-            {
-                Debug.LogWarning("Failed to create deck using LoadCardData, falling back to manual creation");
-                
-                try
-                {
-                    // Use CardFactory to create a basic deck
-                    if (_cardFactory != null)
+                case "metal":
+                    deck = _cardFactory.CreateThemedDeck(ElementType.Metal, deckSize);
+                    break;
+                case "wood":
+                    deck = _cardFactory.CreateThemedDeck(ElementType.Wood, deckSize);
+                    break;
+                case "water":
+                    deck = _cardFactory.CreateThemedDeck(ElementType.Water, deckSize);
+                    break;
+                case "fire":
+                    deck = _cardFactory.CreateThemedDeck(ElementType.Fire, deckSize);
+                    break;
+                case "earth":
+                    deck = _cardFactory.CreateThemedDeck(ElementType.Earth, deckSize);
+                    break;
+                case "balanced":
+                default:
+                    if (LoadCardData.HasInstance && LoadCardData.Instance.IsInitialized)
+                    {
+                        deck = LoadCardData.Instance.CreateRandomStarterDeck("balanced", deckSize);
+                    }
+                    
+                    // If LoadCardData failed, use CardFactory
+                    if (deck == null || deck.Count == 0)
                     {
                         deck = _cardFactory.CreateSampleDeck();
-                        Debug.Log("Created basic deck using CardFactory");
                     }
-                    else
-                    {
-                        Debug.LogError("CardFactory is null, cannot create deck!");
-                        deck = new List<Entity>();
-                    }
-                }
-                catch (System.Exception e)
-                {
-                    Debug.LogError($"Error creating deck with CardFactory: {e.Message}");
-                    deck = new List<Entity>();
-                }
+                    break;
             }
             
             // Ensure deck has at least some cards
             if (deck == null || deck.Count == 0)
             {
                 Debug.LogError("Failed to create any cards for the deck!");
-                return new List<Entity>();
+                deck = _cardFactory.CreateSampleDeck(); // Fallback to basic deck
             }
             
             Debug.Log($"Created deck with {deck.Count} cards for new game");
@@ -275,6 +258,7 @@ namespace RunTime
         
         /// <summary>
         /// Start a battle with an enemy
+        /// Bắt đầu trận đấu với kẻ địch
         /// </summary>
         public void StartBattle(string enemyType)
         {
@@ -306,6 +290,7 @@ namespace RunTime
         
         /// <summary>
         /// End the current battle
+        /// Kết thúc trận đấu hiện tại
         /// </summary>
         private void EndBattle()
         {
@@ -333,6 +318,8 @@ namespace RunTime
                 Debug.Log("Player lost the battle!");
                 
                 // Game over logic
+                _isGameInProgress = false;
+                
                 // Automatically restart for simplicity
                 Invoke("StartNewGame", 2f);
             }
@@ -340,6 +327,7 @@ namespace RunTime
         
         /// <summary>
         /// Create the player entity
+        /// Tạo entity cho người chơi
         /// </summary>
         private Entity CreatePlayerEntity()
         {
@@ -361,6 +349,7 @@ namespace RunTime
         
         /// <summary>
         /// Create an enemy entity
+        /// Tạo entity cho kẻ địch
         /// </summary>
         private Entity CreateEnemyEntity(string enemyType)
         {
@@ -440,6 +429,7 @@ namespace RunTime
         
         /// <summary>
         /// Play a card from the player's hand
+        /// Đánh một lá bài từ tay người chơi
         /// </summary>
         public void PlayCard(int cardIndex)
         {
@@ -468,6 +458,7 @@ namespace RunTime
         
         /// <summary>
         /// Play a card as a support card
+        /// Đánh lá bài làm thẻ hỗ trợ
         /// </summary>
         public void PlayAsSupport(int cardIndex)
         {
@@ -500,6 +491,7 @@ namespace RunTime
         
         /// <summary>
         /// End the player's turn
+        /// Kết thúc lượt của người chơi
         /// </summary>
         public void EndTurn()
         {
@@ -525,38 +517,17 @@ namespace RunTime
         }
         
         /// <summary>
-        /// Get the game state for UI
+        /// Check if a game is in progress
+        /// Kiểm tra xem game có đang tiến hành không
         /// </summary>
-        public void GetGameState()
+        public bool IsGameInProgress()
         {
-            if (_playerEntity == null)
-            {
-                Debug.Log("No active game");
-                return;
-            }
-            
-            StatsComponent playerStats = _playerEntity.GetComponent<StatsComponent>();
-            
-            Debug.Log($"Player Health: {playerStats.Health}/{playerStats.MaxHealth}");
-            Debug.Log($"Player Gold: {_playerGold}");
-            Debug.Log($"Player Energy: {_playerEnergy}/{_maxPlayerEnergy}");
-            Debug.Log($"Cards in Deck: {_cardSystem.GetDeck().Count}");
-            Debug.Log($"Cards in Hand: {_cardSystem.GetHand().Count}");
-            Debug.Log($"Cards in Discard: {_cardSystem.GetDiscardPile().Count}");
-            Debug.Log($"Support Cards: {_cardSystem.GetSupportZone().Count}");
-            
-            if (_isBattleActive && _enemyEntity != null)
-            {
-                StatsComponent enemyStats = _enemyEntity.GetComponent<StatsComponent>();
-                ElementComponent enemyElement = _enemyEntity.GetComponent<ElementComponent>();
-                
-                Debug.Log($"Enemy Health: {enemyStats.Health}/{enemyStats.MaxHealth}");
-                Debug.Log($"Enemy Element: {enemyElement?.Element.ToString() ?? "None"}");
-            }
+            return _isGameInProgress;
         }
         
         /// <summary>
         /// Set the current season
+        /// Đặt mùa hiện tại
         /// </summary>
         public void SetSeason(Season season)
         {
@@ -567,6 +538,7 @@ namespace RunTime
         
         /// <summary>
         /// Get player energy
+        /// Lấy năng lượng người chơi
         /// </summary>
         public int GetPlayerEnergy()
         {
@@ -575,6 +547,7 @@ namespace RunTime
         
         /// <summary>
         /// Set player energy
+        /// Đặt năng lượng người chơi
         /// </summary>
         public void SetPlayerEnergy(int energy)
         {
@@ -583,6 +556,7 @@ namespace RunTime
         
         /// <summary>
         /// Reset player energy to max
+        /// Đặt lại năng lượng người chơi về tối đa
         /// </summary>
         public void ResetPlayerEnergy()
         {
@@ -595,7 +569,6 @@ namespace RunTime
         public BattleSystem GetBattleSystem() => _battleSystem;
         public ElementInteractionSystem GetElementInteractionSystem() => _elementInteractionSystem;
         public SupportCardSystem GetSupportCardSystem() => _supportCardSystem;
-        public SupportCardFactory GetSupportCardFactory() => _supportCardFactory;
         public Entity GetPlayerEntity() => _playerEntity;
         public Entity GetEnemyEntity() => _enemyEntity;
         public Season GetCurrentSeason() => _currentSeason;

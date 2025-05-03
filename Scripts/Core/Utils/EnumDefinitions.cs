@@ -29,6 +29,7 @@
     /// </summary>
     public enum CardType
     {
+        None = 0,
         ElementalCard,      // Thẻ Nguyên Tố
         DivineBeast,        // Thẻ Thần Thú
         Monster,            // Thẻ Yêu Quái

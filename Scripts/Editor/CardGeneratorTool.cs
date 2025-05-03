@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿// File: Scripts/Editor/CardGeneratorTool.cs
+using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 using System.IO;
@@ -30,7 +31,13 @@ namespace Editor
         private int _cardHealth = 5;
         private int _cardSpeed = 2;
         private ElementType _cardElement = ElementType.Metal;
-        private int _napAmIndex = 0;
+        
+        // Nap Am selections (for ElementalCard only)
+        private MetalNapAm _metalNapAm = MetalNapAm.SwordQi;
+        private WoodNapAm _woodNapAm = WoodNapAm.Growth;
+        private WaterNapAm _waterNapAm = WaterNapAm.Adaptation;
+        private FireNapAm _fireNapAm = FireNapAm.Burning;
+        private EarthNapAm _earthNapAm = EarthNapAm.Solidity;
 
         // Batch generation
         private int _batchAmount = 5;
@@ -236,19 +243,19 @@ namespace Editor
             switch (_cardElement)
             {
                 case ElementType.Metal:
-                    _napAmIndex = EditorGUILayout.Popup("NapAm:", _napAmIndex, GetMetalNapAmNames());
+                    _metalNapAm = (MetalNapAm)EditorGUILayout.EnumPopup("Metal Nap Am:", _metalNapAm);
                     break;
                 case ElementType.Wood:
-                    _napAmIndex = EditorGUILayout.Popup("NapAm:", _napAmIndex, GetWoodNapAmNames());
+                    _woodNapAm = (WoodNapAm)EditorGUILayout.EnumPopup("Wood Nap Am:", _woodNapAm);
                     break;
                 case ElementType.Water:
-                    _napAmIndex = EditorGUILayout.Popup("NapAm:", _napAmIndex, GetWaterNapAmNames());
+                    _waterNapAm = (WaterNapAm)EditorGUILayout.EnumPopup("Water Nap Am:", _waterNapAm);
                     break;
                 case ElementType.Fire:
-                    _napAmIndex = EditorGUILayout.Popup("NapAm:", _napAmIndex, GetFireNapAmNames());
+                    _fireNapAm = (FireNapAm)EditorGUILayout.EnumPopup("Fire Nap Am:", _fireNapAm);
                     break;
                 case ElementType.Earth:
-                    _napAmIndex = EditorGUILayout.Popup("NapAm:", _napAmIndex, GetEarthNapAmNames());
+                    _earthNapAm = (EarthNapAm)EditorGUILayout.EnumPopup("Earth Nap Am:", _earthNapAm);
                     break;
             }
 
@@ -363,6 +370,183 @@ namespace Editor
                 Debug.Log($"Card created: {assetPath}");
                 EditorUtility.DisplayDialog("Success", $"Card created: {_cardName}", "OK");
             }
+        }
+
+        #endregion
+
+        #region Card Creation Methods
+
+        /// <summary>
+        /// Creates an Elemental Card with appropriate Nap Am
+        /// </summary>
+        private ElementalCardDataSO CreateElementalCard()
+        {
+            ElementalCardDataSO card = CreateInstance<ElementalCardDataSO>();
+            
+            // Set basic properties
+            card.cardId = _cardId;
+            card.cardKeyName = _cardKeyName;
+            card.cardName = _cardName;
+            card.description = _cardDescription;
+            card.cardType = CardType.ElementalCard;
+            card.rarity = _cardRarity;
+            card.cost = _cardCost;
+            card.attack = _cardAttack;
+            card.defense = _cardDefense;
+            card.health = _cardHealth;
+            card.speed = _cardSpeed;
+            card.elementType = _cardElement;
+            
+            // Set the appropriate Nap Am based on element type
+            switch (_cardElement)
+            {
+                case ElementType.Metal:
+                    card.metalNapAm = _metalNapAm;
+                    break;
+                case ElementType.Wood:
+                    card.woodNapAm = _woodNapAm;
+                    break;
+                case ElementType.Water:
+                    card.waterNapAm = _waterNapAm;
+                    break;
+                case ElementType.Fire:
+                    card.fireNapAm = _fireNapAm;
+                    break;
+                case ElementType.Earth:
+                    card.earthNapAm = _earthNapAm;
+                    break;
+            }
+            
+            return card;
+        }
+
+        /// <summary>
+        /// Creates a Divine Beast Card
+        /// </summary>
+        private DivineBeastCardDataSO CreateDivineBeastCard()
+        {
+            DivineBeastCardDataSO card = CreateInstance<DivineBeastCardDataSO>();
+            
+            // Set basic properties
+            card.cardId = _cardId;
+            card.cardKeyName = _cardKeyName;
+            card.cardName = _cardName;
+            card.description = _cardDescription;
+            card.cardType = CardType.DivineBeast;
+            card.rarity = _cardRarity;
+            card.cost = _cardCost;
+            card.attack = _cardAttack;
+            card.defense = _cardDefense;
+            card.health = _cardHealth;
+            card.speed = _cardSpeed;
+            card.elementType = _cardElement;
+            
+            // Set Divine Beast specific properties
+            card.effectDescription = _effectDescription;
+            card.effectTargetStat = _effectTargetStat;
+            card.effectValue = _effectValue;
+            card.effectDuration = _effectDuration;
+            
+            return card;
+        }
+
+        /// <summary>
+        /// Creates a Monster Card
+        /// </summary>
+        private MonsterCardDataSO CreateMonsterCard()
+        {
+            MonsterCardDataSO card = CreateInstance<MonsterCardDataSO>();
+            
+            // Set basic properties
+            card.cardId = _cardId;
+            card.cardKeyName = _cardKeyName;
+            card.cardName = _cardName;
+            card.description = _cardDescription;
+            card.cardType = CardType.Monster;
+            card.rarity = _cardRarity;
+            card.cost = _cardCost;
+            card.attack = _cardAttack;
+            card.defense = _cardDefense;
+            card.health = _cardHealth;
+            card.speed = _cardSpeed;
+            card.elementType = _cardElement;
+            
+            // Set Monster specific properties
+            card.effects = new MonsterCardDataSO.EffectData[1];
+            card.effects[0] = new MonsterCardDataSO.EffectData
+            {
+                effectName = _cardName + " Effect",
+                effectDescription = _effectDescription,
+                effectType = _effectTargetStat,
+                effectValue = _effectValue,
+                effectDuration = _effectDuration
+            };
+            
+            return card;
+        }
+
+        /// <summary>
+        /// Creates a Spirit Animal Card
+        /// </summary>
+        private SpiritAnimalCardDataSO CreateSpiritAnimalCard()
+        {
+            SpiritAnimalCardDataSO card = CreateInstance<SpiritAnimalCardDataSO>();
+            
+            // Set basic properties
+            card.cardId = _cardId;
+            card.cardKeyName = _cardKeyName;
+            card.cardName = _cardName;
+            card.description = _cardDescription;
+            card.cardType = CardType.SpiritAnimal;
+            card.rarity = _cardRarity;
+            card.cost = _cardCost;
+            card.attack = _cardAttack;
+            card.defense = _cardDefense;
+            card.health = _cardHealth;
+            card.speed = _cardSpeed;
+            card.elementType = _cardElement;
+            
+            // Set Spirit Animal specific properties
+            card.zodiacAnimal = _zodiacAnimal;
+            card.supportEffectDescription = _effectDescription;
+            card.activationType = _activationType;
+            card.activationConditionDescription = _activationConditionDescription;
+            card.conditionType = _conditionType;
+            card.conditionValue = _conditionValue;
+            
+            return card;
+        }
+
+        /// <summary>
+        /// Creates a Joker Card
+        /// </summary>
+        private JokerCardDataSO CreateJokerCard()
+        {
+            JokerCardDataSO card = CreateInstance<JokerCardDataSO>();
+            
+            // Set basic properties
+            card.cardId = _cardId;
+            card.cardKeyName = _cardKeyName;
+            card.cardName = _cardName;
+            card.description = _cardDescription;
+            card.cardType = CardType.Joker;
+            card.rarity = _cardRarity;
+            card.cost = _cardCost;
+            card.attack = _cardAttack;
+            card.defense = _cardDefense;
+            card.health = _cardHealth;
+            card.speed = _cardSpeed;
+            card.elementType = _cardElement;
+            
+            // Set Joker specific properties
+            card.effectDescription = _effectDescription;
+            card.activationType = _activationType;
+            card.activationConditionDescription = _activationConditionDescription;
+            card.conditionType = _conditionType;
+            card.conditionValue = _conditionValue;
+            card.cooldownTime = _cooldownTime;
+            
+            return card;
         }
 
         #endregion
@@ -502,13 +686,36 @@ namespace Editor
                     _cardKeyName = $"{originalKeyName}_{i + 1}";
                     _cardName = $"{originalName}_{i + 1}";
                     
-                    // Randomize NapAm index
-                    _napAmIndex = Random.Range(0, 6); // Assuming 6 NapAm types per element
+                    // Set the element from batch settings
+                    _cardElement = _batchElement;
+                    
+                    // If ElementalCard, randomly select Nap Am based on element
+                    if (_cardType == CardType.ElementalCard)
+                    {
+                        switch (_cardElement)
+                        {
+                            case ElementType.Metal:
+                                _metalNapAm = (MetalNapAm)Random.Range(0, 6); // 0-5 for 6 types
+                                break;
+                            case ElementType.Wood:
+                                _woodNapAm = (WoodNapAm)Random.Range(0, 6);
+                                break;
+                            case ElementType.Water:
+                                _waterNapAm = (WaterNapAm)Random.Range(0, 6);
+                                break;
+                            case ElementType.Fire:
+                                _fireNapAm = (FireNapAm)Random.Range(0, 6);
+                                break;
+                            case ElementType.Earth:
+                                _earthNapAm = (EarthNapAm)Random.Range(0, 6);
+                                break;
+                        }
+                    }
                     
                     // Random description if empty
                     if (string.IsNullOrEmpty(_cardDescription))
                     {
-                        _cardDescription = $"Auto-generated {_cardElement} card.";
+                        _cardDescription = $"Auto-generated {_cardElement} card with {GetNapAmName(_cardElement)} specialization.";
                     }
 
                     // Create the card based on type
@@ -594,12 +801,6 @@ namespace Editor
             }
 
             EditorGUILayout.Space();
-
-            // Draw CSV import section
-            DrawCsvImportSection();
-
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Card List", EditorStyles.boldLabel);
 
             // Display all cards in the Resources folder
             if (_generatedCards.Count == 0)
@@ -736,245 +937,28 @@ namespace Editor
 
         #endregion
 
-        #region Card Creation Methods
-
-        /// <summary>
-        /// Creates an Elemental Card
-        /// </summary>
-        private ElementalCardDataSO CreateElementalCard()
-        {
-            ElementalCardDataSO card = CreateInstance<ElementalCardDataSO>();
-            
-            // Set basic properties
-            card.cardId = _cardId;
-            card.cardKeyName = _cardKeyName;
-            card.cardName = _cardName;
-            card.description = _cardDescription;
-            card.cardType = CardType.ElementalCard;
-            card.rarity = _cardRarity;
-            card.cost = _cardCost;
-            card.attack = _cardAttack;
-            card.defense = _cardDefense;
-            card.health = _cardHealth;
-            card.speed = _cardSpeed;
-            card.elementType = _cardElement;
-            card.napAmIndex = _napAmIndex;
-            
-            return card;
-        }
-
-        /// <summary>
-        /// Creates a Divine Beast Card
-        /// </summary>
-        private DivineBeastCardDataSO CreateDivineBeastCard()
-        {
-            DivineBeastCardDataSO card = CreateInstance<DivineBeastCardDataSO>();
-            
-            // Set basic properties
-            card.cardId = _cardId;
-            card.cardKeyName = _cardKeyName;
-            card.cardName = _cardName;
-            card.description = _cardDescription;
-            card.cardType = CardType.DivineBeast;
-            card.rarity = _cardRarity;
-            card.cost = _cardCost;
-            card.attack = _cardAttack;
-            card.defense = _cardDefense;
-            card.health = _cardHealth;
-            card.speed = _cardSpeed;
-            card.elementType = _cardElement;
-            
-            // Set Divine Beast specific properties
-            card.effectDescription = _effectDescription;
-            card.effectTargetStat = _effectTargetStat;
-            card.effectValue = _effectValue;
-            card.effectDuration = _effectDuration;
-            
-            return card;
-        }
-
-        /// <summary>
-        /// Creates a Monster Card
-        /// </summary>
-        private MonsterCardDataSO CreateMonsterCard()
-        {
-            MonsterCardDataSO card = CreateInstance<MonsterCardDataSO>();
-            
-            // Set basic properties
-            card.cardId = _cardId;
-            card.cardKeyName = _cardKeyName;
-            card.cardName = _cardName;
-            card.description = _cardDescription;
-            card.cardType = CardType.Monster;
-            card.rarity = _cardRarity;
-            card.cost = _cardCost;
-            card.attack = _cardAttack;
-            card.defense = _cardDefense;
-            card.health = _cardHealth;
-            card.speed = _cardSpeed;
-            card.elementType = _cardElement;
-            
-            // Set Monster specific properties
-            card.effects = new MonsterCardDataSO.EffectData[1];
-            card.effects[0] = new MonsterCardDataSO.EffectData
-            {
-                effectName = _cardName + " Effect",
-                effectDescription = _effectDescription,
-                effectType = _effectTargetStat,
-                effectValue = _effectValue,
-                effectDuration = _effectDuration
-            };
-            
-            return card;
-        }
-
-        /// <summary>
-        /// Creates a Spirit Animal Card
-        /// </summary>
-        private SpiritAnimalCardDataSO CreateSpiritAnimalCard()
-        {
-            SpiritAnimalCardDataSO card = CreateInstance<SpiritAnimalCardDataSO>();
-            
-            // Set basic properties
-            card.cardId = _cardId;
-            card.cardKeyName = _cardKeyName;
-            card.cardName = _cardName;
-            card.description = _cardDescription;
-            card.cardType = CardType.SpiritAnimal;
-            card.rarity = _cardRarity;
-            card.cost = _cardCost;
-            card.attack = _cardAttack;
-            card.defense = _cardDefense;
-            card.health = _cardHealth;
-            card.speed = _cardSpeed;
-            card.elementType = _cardElement;
-            
-            // Set Spirit Animal specific properties
-            card.zodiacAnimal = _zodiacAnimal;
-            card.supportEffectDescription = _effectDescription;
-            card.activationType = _activationType;
-            card.activationConditionDescription = _activationConditionDescription;
-            card.conditionType = _conditionType;
-            card.conditionValue = _conditionValue;
-            
-            return card;
-        }
-
-        /// <summary>
-        /// Creates a Joker Card
-        /// </summary>
-        private JokerCardDataSO CreateJokerCard()
-        {
-            JokerCardDataSO card = CreateInstance<JokerCardDataSO>();
-            
-            // Set basic properties
-            card.cardId = _cardId;
-            card.cardKeyName = _cardKeyName;
-            card.cardName = _cardName;
-            card.description = _cardDescription;
-            card.cardType = CardType.Joker;
-            card.rarity = _cardRarity;
-            card.cost = _cardCost;
-            card.attack = _cardAttack;
-            card.defense = _cardDefense;
-            card.health = _cardHealth;
-            card.speed = _cardSpeed;
-            card.elementType = _cardElement;
-            card.napAmIndex = _napAmIndex;
-            
-            // Set Joker specific properties
-            card.effectDescription = _effectDescription;
-            card.activationType = _activationType;
-            card.activationConditionDescription = _activationConditionDescription;
-            card.conditionType = _conditionType;
-            card.conditionValue = _conditionValue;
-            card.cooldownTime = _cooldownTime;
-            
-            return card;
-        }
-
-        #endregion
-
         #region Utility Methods
 
         /// <summary>
-        /// Gets the names of Metal NapAm
+        /// Get the Nap Am name based on selected element
         /// </summary>
-        private string[] GetMetalNapAmNames()
+        private string GetNapAmName(ElementType elementType)
         {
-            return new string[]
+            switch (elementType)
             {
-                "Sword Qi (Kiếm Khí)",
-                "Hardness (Cương Nghị)",
-                "Purity (Thanh Tịnh)",
-                "Reflection (Phản Chiếu)",
-                "Spirit (Linh Khí)",
-                "Calmness (Trầm Tĩnh)"
-            };
-        }
-
-        /// <summary>
-        /// Gets the names of Wood NapAm
-        /// </summary>
-        private string[] GetWoodNapAmNames()
-        {
-            return new string[]
-            {
-                "Growth (Sinh Trưởng)",
-                "Flexibility (Linh Hoạt)",
-                "Symbiosis (Cộng Sinh)",
-                "Regeneration (Tái Sinh)",
-                "Toxin (Độc Tố)",
-                "Shelter (Che Chắn)"
-            };
-        }
-
-        /// <summary>
-        /// Gets the names of Water NapAm
-        /// </summary>
-        private string[] GetWaterNapAmNames()
-        {
-            return new string[]
-            {
-                "Adaptation (Thích Nghi)",
-                "Ice (Băng Giá)",
-                "Flow (Dòng Chảy)",
-                "Mist (Sương Mù)",
-                "Reflection (Phản Ánh)",
-                "Purification (Thanh Tẩy)"
-            };
-        }
-
-        /// <summary>
-        /// Gets the names of Fire NapAm
-        /// </summary>
-        private string[] GetFireNapAmNames()
-        {
-            return new string[]
-            {
-                "Burning (Thiêu Đốt)",
-                "Explosion (Bùng Nổ)",
-                "Passion (Nhiệt Huyết)",
-                "Light (Ánh Sáng)",
-                "Forging (Rèn Luyện)",
-                "Incineration (Thiêu Rụi)"
-            };
-        }
-
-        /// <summary>
-        /// Gets the names of Earth NapAm
-        /// </summary>
-        private string[] GetEarthNapAmNames()
-        {
-            return new string[]
-            {
-                "Solidity (Kiên Cố)",
-                "Gravity (Trọng Lực)",
-                "Fertility (Màu Mỡ)",
-                "Volcano (Núi Lửa)",
-                "Crystal (Tinh Thể)",
-                "Terra (Đại Địa)"
-            };
+                case ElementType.Metal:
+                    return _metalNapAm.ToString();
+                case ElementType.Wood:
+                    return _woodNapAm.ToString();
+                case ElementType.Water:
+                    return _waterNapAm.ToString();
+                case ElementType.Fire:
+                    return _fireNapAm.ToString();
+                case ElementType.Earth:
+                    return _earthNapAm.ToString();
+                default:
+                    return "Unknown";
+            }
         }
 
         /// <summary>

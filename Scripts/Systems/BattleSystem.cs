@@ -462,5 +462,7 @@ namespace Systems
         /// Get current turn
         /// </summary>
         public int GetCurrentTurn() => _currentTurn;
+
+        public int GetMaxPlayerEnergy() => _maxPlayerEnergy;
     }
 }

@@ -204,9 +204,9 @@ namespace UI
             }
             
             // Update enemy intent
-            string intentType = _battleSystem.GetEnemyIntentType();
-            int intentValue = _battleSystem.GetEnemyIntentValue();
-            enemyIntentText.text = $"Intent: {intentType} {intentValue}";
+            // string intentType = _battleSystem.GetEnemyIntentType();
+            // int intentValue = _battleSystem.GetEnemyIntentValue();
+            // enemyIntentText.text = $"Intent: {intentType} {intentValue}";
             
             // Update hand cards
             UpdateHandCards(_cardSystem.GetHand());

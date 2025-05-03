@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿// File: Scripts/Editor/CardImporter.cs
+using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 using System.IO;
@@ -36,7 +37,14 @@ namespace Editor
             public int Health;
             public int Speed;
             public ElementType ElementType;
-            public int NapAmIndex;
+            
+            // New Nap Am fields using enums
+            public MetalNapAm MetalNapAm;
+            public WoodNapAm WoodNapAm;
+            public WaterNapAm WaterNapAm;
+            public FireNapAm FireNapAm;
+            public EarthNapAm EarthNapAm;
+            
             public string EffectDescription;
             public string EffectTargetStat;
             public float EffectValue;
@@ -147,7 +155,8 @@ namespace Editor
                 card.Selected = EditorGUILayout.Toggle(card.Selected, GUILayout.Width(20));
                 
                 // Card info
-                EditorGUILayout.LabelField($"{card.Id}: {card.CardName} ({card.CardType}, {card.ElementType})", EditorStyles.boldLabel);
+                string napAmName = GetNapAmName(card.ElementType, card);
+                EditorGUILayout.LabelField($"{card.Id}: {card.CardName} ({card.CardType}, {card.ElementType}, {napAmName})", EditorStyles.boldLabel);
                 
                 EditorGUILayout.EndHorizontal();
             }
@@ -174,16 +183,36 @@ namespace Editor
                 using (StreamWriter writer = new StreamWriter(path))
                 {
                     // Write header
-                    writer.WriteLine("Id,KeyName,CardName,Description,CardType,Rarity,Cost,Attack,Defense,Health,Speed,ElementType,NapAmIndex,EffectDescription,EffectTargetStat,EffectValue,EffectDuration,ZodiacAnimal,ActivationType,ActivationConditionDescription,ConditionType,ConditionValue,CooldownTime");
+                    writer.WriteLine("Id,KeyName,CardName,Description,CardType,Rarity,Cost,Attack,Defense,Health,Speed,ElementType,MetalNapAm,WoodNapAm,WaterNapAm,FireNapAm,EarthNapAm,EffectDescription,EffectTargetStat,EffectValue,EffectDuration,ZodiacAnimal,ActivationType,ActivationConditionDescription,ConditionType,ConditionValue,CooldownTime");
                     
-                    // Write example rows
-                    writer.WriteLine("1,metal_sword,Kim Chúc Kiếm,Thanh kiếm bằng kim loại sắc bén có khả năng chém xuyên giáp,ElementalCard,Common,1,4,1,3,2,Metal,0,,,,,,,,,,");
-                    writer.WriteLine("2,metal_shield,Thiết Bích Thuẫn,Tấm khiên kim loại cứng cáp tăng khả năng phòng thủ,ElementalCard,Common,1,1,5,4,1,Metal,1,,,,,,,,,,");
-                    writer.WriteLine("3,metal_pure,Thanh Tịnh Chi Kim,Kim loại tinh khiết có khả năng thanh lọc các hiệu ứng tiêu cực,ElementalCard,Rare,2,3,3,5,2,Metal,2,,,,,,,,,,");
-                    writer.WriteLine("9,white_tiger,Bạch Hổ Thần Thú,Thần thú phương Tây chúa tể của Kim tăng sức mạnh cho các thẻ Kim,DivineBeast,Epic,3,6,4,12,5,Metal,4,Tăng sức tấn công của tất cả thẻ Kim,attack,2,3,,,,,,");
-                    writer.WriteLine("11,nine_tailed_fox,Cửu Vĩ Hồ,Hồ ly chín đuôi với sức mạnh mê hoặc có thể khiến đối thủ tấn công đồng đội,Monster,Epic,3,5,3,10,6,Fire,0,30% cơ hội làm đối thủ đánh nhầm vào đồng đội,control,0.3,2,,,,,,");
-                    writer.WriteLine("12,rat_swift,Tý - Thần Tốc,Chuột nhanh nhẹn tăng tốc độ và khả năng né tránh,SpiritAnimal,Rare,2,2,1,4,7,Water,0,Tăng tốc độ và né tránh mỗi khi chơi 2 lá bài,,,,,Rat,Recurring,Mỗi khi chơi 2 lá bài,card_count,2,");
-                    writer.WriteLine("13,heaven_earth_reversal,Càn Khôn Đảo Chuyển,Đảo ngược tất cả hiệu ứng tương sinh thành tương khắc và ngược lại,Joker,Legendary,4,0,0,8,0,None,0,Đảo ngược tất cả hiệu ứng tương sinh thành tương khắc và ngược lại trong 3 lượt,,,,,,Transformative,Kích hoạt khi có ít nhất 3 nguyên tố khác nhau trong tay,element_diversity,3,5");
+                    // Write example rows for different card types
+                    
+                    // Metal Card Example
+                    writer.WriteLine("1,metal_sword,Kim Chúc Kiếm,Thanh kiếm bằng kim loại sắc bén có khả năng chém xuyên giáp,ElementalCard,Common,1,4,1,3,2,Metal,SwordQi,,,,,,,,,,,,,,,");
+                    
+                    // Wood Card Example
+                    writer.WriteLine("2,wood_shield,Sinh Mệnh Chi Mộc,Cây đem lại sức mạnh tái sinh và hồi phục,ElementalCard,Common,1,1,3,5,2,Wood,,Regeneration,,,,,,,,,,,,,,");
+                    
+                    // Water Card Example
+                    writer.WriteLine("3,water_ice,Phong Tỏa Băng Hà,Dòng nước đóng băng kẻ địch làm chậm mọi chuyển động,ElementalCard,Rare,2,2,4,4,3,Water,,,Ice,,,,,,,,,,,,,");
+                    
+                    // Fire Card Example
+                    writer.WriteLine("4,fire_explosion,Bùng Nổ Nhiệt Bạo,Ngọn lửa bùng cháy tạo ra vụ nổ mạnh mẽ,ElementalCard,Rare,2,5,1,3,4,Fire,,,,Explosion,,,,,,,,,,,,");
+                    
+                    // Earth Card Example
+                    writer.WriteLine("5,earth_crystal,Tinh Thể Kỳ Diệu,Tinh thể từ lòng đất với sức mạnh kỳ diệu,ElementalCard,Epic,3,3,5,6,2,Earth,,,,,Crystal,,,,,,,,,,,");
+                    
+                    // Divine Beast Example
+                    writer.WriteLine("9,white_tiger,Bạch Hổ Thần Thú,Thần thú phương Tây chúa tể của Kim tăng sức mạnh cho các thẻ Kim,DivineBeast,Epic,3,6,4,12,5,Metal,SwordQi,,,,,,Tăng sức tấn công của tất cả thẻ Kim,attack,2,3,,,,,,");
+                    
+                    // Monster Example
+                    writer.WriteLine("11,nine_tailed_fox,Cửu Vĩ Hồ,Hồ ly chín đuôi với sức mạnh mê hoặc có thể khiến đối thủ tấn công đồng đội,Monster,Epic,3,5,3,10,6,Fire,,,,Passion,,30% cơ hội làm đối thủ đánh nhầm vào đồng đội,control,0.3,2,,,,,,");
+                    
+                    // Spirit Animal Example
+                    writer.WriteLine("12,rat_swift,Tý - Thần Tốc,Chuột nhanh nhẹn tăng tốc độ và khả năng né tránh,SpiritAnimal,Rare,2,2,1,4,7,Water,,,Adaptation,,,Tăng tốc độ và né tránh mỗi khi chơi 2 lá bài,,,,,Rat,Recurring,Mỗi khi chơi 2 lá bài,card_count,2,");
+                    
+                    // Joker Example
+                    writer.WriteLine("13,heaven_earth_reversal,Càn Khôn Đảo Chuyển,Đảo ngược tất cả hiệu ứng tương sinh thành tương khắc và ngược lại,Joker,Legendary,4,0,0,8,0,None,,,,,,,Đảo ngược tất cả hiệu ứng tương sinh thành tương khắc và ngược lại trong 3 lượt,,,,,,Transformative,Kích hoạt khi có ít nhất 3 nguyên tố khác nhau trong tay,element_diversity,3,5");
                 }
 
                 _importMessage = "CSV template created successfully!";
@@ -288,19 +317,25 @@ namespace Editor
                 card.Health = ParseInt(values[9]);
                 card.Speed = ParseInt(values[10]);
                 card.ElementType = ParseEnum<ElementType>(values[11]);
-                card.NapAmIndex = ParseInt(values[12]);
+                
+                // Parse Nap Am fields based on the new schema
+                if (values.Count > 12) card.MetalNapAm = ParseEnum<MetalNapAm>(values[12]);
+                if (values.Count > 13) card.WoodNapAm = ParseEnum<WoodNapAm>(values[13]);
+                if (values.Count > 14) card.WaterNapAm = ParseEnum<WaterNapAm>(values[14]);
+                if (values.Count > 15) card.FireNapAm = ParseEnum<FireNapAm>(values[15]);
+                if (values.Count > 16) card.EarthNapAm = ParseEnum<EarthNapAm>(values[16]);
                 
                 // Parse optional fields
-                if (values.Count > 13) card.EffectDescription = values[13];
-                if (values.Count > 14) card.EffectTargetStat = values[14];
-                if (values.Count > 15) card.EffectValue = ParseFloat(values[15]);
-                if (values.Count > 16) card.EffectDuration = ParseInt(values[16]);
-                if (values.Count > 17) card.ZodiacAnimal = values[17];
-                if (values.Count > 18) card.ActivationType = ParseEnum<ActivationType>(values[18]);
-                if (values.Count > 19) card.ActivationConditionDescription = values[19];
-                if (values.Count > 20) card.ConditionType = values[20];
-                if (values.Count > 21) card.ConditionValue = ParseFloat(values[21]);
-                if (values.Count > 22) card.CooldownTime = ParseInt(values[22]);
+                if (values.Count > 17) card.EffectDescription = values[17];
+                if (values.Count > 18) card.EffectTargetStat = values[18];
+                if (values.Count > 19) card.EffectValue = ParseFloat(values[19]);
+                if (values.Count > 20) card.EffectDuration = ParseInt(values[20]);
+                if (values.Count > 21) card.ZodiacAnimal = values[21];
+                if (values.Count > 22) card.ActivationType = ParseEnum<ActivationType>(values[22]);
+                if (values.Count > 23) card.ActivationConditionDescription = values[23];
+                if (values.Count > 24) card.ConditionType = values[24];
+                if (values.Count > 25) card.ConditionValue = ParseFloat(values[25]);
+                if (values.Count > 26) card.CooldownTime = ParseInt(values[26]);
                 
                 return card;
             }
@@ -308,6 +343,28 @@ namespace Editor
             {
                 Debug.LogError($"Error parsing CSV line: {line}, Error: {e.Message}");
                 return null;
+            }
+        }
+        
+        /// <summary>
+        /// Get the NapAm name based on element type and import data
+        /// </summary>
+        private string GetNapAmName(ElementType elementType, CardImportData cardData)
+        {
+            switch (elementType)
+            {
+                case ElementType.Metal:
+                    return cardData.MetalNapAm.ToString();
+                case ElementType.Wood:
+                    return cardData.WoodNapAm.ToString();
+                case ElementType.Water:
+                    return cardData.WaterNapAm.ToString();
+                case ElementType.Fire:
+                    return cardData.FireNapAm.ToString();
+                case ElementType.Earth:
+                    return cardData.EarthNapAm.ToString();
+                default:
+                    return "Unknown";
             }
         }
         
@@ -350,7 +407,27 @@ namespace Editor
                     _cardHealth = cardData.Health;
                     _cardSpeed = cardData.Speed;
                     _cardElement = cardData.ElementType;
-                    _napAmIndex = cardData.NapAmIndex;
+                    
+                    // Set the appropriate NapAm based on element type
+                    switch (_cardElement)
+                    {
+                        case ElementType.Metal:
+                            _metalNapAm = cardData.MetalNapAm;
+                            break;
+                        case ElementType.Wood:
+                            _woodNapAm = cardData.WoodNapAm;
+                            break;
+                        case ElementType.Water:
+                            _waterNapAm = cardData.WaterNapAm;
+                            break;
+                        case ElementType.Fire:
+                            _fireNapAm = cardData.FireNapAm;
+                            break;
+                        case ElementType.Earth:
+                            _earthNapAm = cardData.EarthNapAm;
+                            break;
+                    }
+                    
                     _effectDescription = cardData.EffectDescription;
                     _effectTargetStat = cardData.EffectTargetStat;
                     _effectValue = cardData.EffectValue;
@@ -459,39 +536,82 @@ namespace Editor
                 using (StreamWriter writer = new StreamWriter(path))
                 {
                     // Write header
-                    writer.WriteLine("Id,KeyName,CardName,Description,CardType,Rarity,Cost,Attack,Defense,Health,Speed,ElementType,NapAmIndex,EffectDescription,EffectTargetStat,EffectValue,EffectDuration,ZodiacAnimal,ActivationType,ActivationConditionDescription,ConditionType,ConditionValue,CooldownTime");
+                    writer.WriteLine("Id,KeyName,CardName,Description,CardType,Rarity,Cost,Attack,Defense,Health,Speed,ElementType,MetalNapAm,WoodNapAm,WaterNapAm,FireNapAm,EarthNapAm,EffectDescription,EffectTargetStat,EffectValue,EffectDuration,ZodiacAnimal,ActivationType,ActivationConditionDescription,ConditionType,ConditionValue,CooldownTime");
                     
                     // Write card data
                     foreach (var cardObj in _generatedCards)
                     {
-                        if (cardObj is CardDataSO cardData)
+                        if (cardObj is ElementalCardDataSO elementalCard)
                         {
                             // Base card data
-                            string line = $"{cardData.cardId},\"{EscapeCsvField(cardData.cardKeyName)}\",\"{EscapeCsvField(cardData.cardName)}\",\"{EscapeCsvField(cardData.description)}\",{cardData.cardType},{cardData.rarity},{cardData.cost},{cardData.attack},{cardData.defense},{cardData.health},{cardData.speed},{cardData.elementType},{cardData.napAmIndex}";
+                            string line = $"{elementalCard.cardId},\"{EscapeCsvField(elementalCard.cardKeyName)}\",\"{EscapeCsvField(elementalCard.cardName)}\",\"{EscapeCsvField(elementalCard.description)}\",{elementalCard.cardType},{elementalCard.rarity},{elementalCard.cost},{elementalCard.attack},{elementalCard.defense},{elementalCard.health},{elementalCard.speed},{elementalCard.elementType}";
                             
-                            // Special card data
-                            if (cardObj is DivineBeastCardDataSO divineBeast)
-                            {
-                                line += $",\"{EscapeCsvField(divineBeast.effectDescription)}\",{divineBeast.effectTargetStat},{divineBeast.effectValue},{divineBeast.effectDuration},,,,,,";
-                            }
-                            else if (cardObj is SpiritAnimalCardDataSO spiritAnimal)
-                            {
-                                line += $",\"{EscapeCsvField(spiritAnimal.supportEffectDescription)}\",,,,\"{spiritAnimal.zodiacAnimal}\",{spiritAnimal.activationType},\"{EscapeCsvField(spiritAnimal.activationConditionDescription)}\",{spiritAnimal.conditionType},{spiritAnimal.conditionValue},";
-                            }
-                            else if (cardObj is JokerCardDataSO joker)
-                            {
-                                line += $",\"{EscapeCsvField(joker.effectDescription)}\",,,,,,{joker.activationType},\"{EscapeCsvField(joker.activationConditionDescription)}\",{joker.conditionType},{joker.conditionValue},{joker.cooldownTime}";
-                            }
-                            else if (cardObj is MonsterCardDataSO monster && monster.effects.Length > 0)
-                            {
-                                var effect = monster.effects[0];
-                                line += $",\"{EscapeCsvField(effect.effectDescription)}\",{effect.effectType},{effect.effectValue},{effect.effectDuration},,,,,,";
-                            }
-                            else
-                            {
-                                // Empty fields for other card types
-                                line += ",,,,,,,,,,";
-                            }
+                            // Add Nap Am data based on element type
+                            string metalNapAm = elementalCard.elementType == ElementType.Metal ? elementalCard.metalNapAm.ToString() : "";
+                            string woodNapAm = elementalCard.elementType == ElementType.Wood ? elementalCard.woodNapAm.ToString() : "";
+                            string waterNapAm = elementalCard.elementType == ElementType.Water ? elementalCard.waterNapAm.ToString() : "";
+                            string fireNapAm = elementalCard.elementType == ElementType.Fire ? elementalCard.fireNapAm.ToString() : "";
+                            string earthNapAm = elementalCard.elementType == ElementType.Earth ? elementalCard.earthNapAm.ToString() : "";
+                            
+                            line += $",{metalNapAm},{woodNapAm},{waterNapAm},{fireNapAm},{earthNapAm}";
+                            
+                            // Empty fields for other details
+                            line += ",,,,,,,,,,";
+                            
+                            writer.WriteLine(line);
+                        }
+                        else if (cardObj is DivineBeastCardDataSO divineBeast)
+                        {
+                            string line = $"{divineBeast.cardId},\"{EscapeCsvField(divineBeast.cardKeyName)}\",\"{EscapeCsvField(divineBeast.cardName)}\",\"{EscapeCsvField(divineBeast.description)}\",{divineBeast.cardType},{divineBeast.rarity},{divineBeast.cost},{divineBeast.attack},{divineBeast.defense},{divineBeast.health},{divineBeast.speed},{divineBeast.elementType}";
+                            
+                            // Add empty NapAm fields
+                            line += ",,,,,";
+                            
+                            // Add Divine Beast specific fields
+                            line += $",\"{EscapeCsvField(divineBeast.effectDescription)}\",{divineBeast.effectTargetStat},{divineBeast.effectValue},{divineBeast.effectDuration}";
+                            
+                            // Empty fields for other details
+                            line += ",,,,,,";
+                            
+                            writer.WriteLine(line);
+                        }
+                        else if (cardObj is SpiritAnimalCardDataSO spiritAnimal)
+                        {
+                            string line = $"{spiritAnimal.cardId},\"{EscapeCsvField(spiritAnimal.cardKeyName)}\",\"{EscapeCsvField(spiritAnimal.cardName)}\",\"{EscapeCsvField(spiritAnimal.description)}\",{spiritAnimal.cardType},{spiritAnimal.rarity},{spiritAnimal.cost},{spiritAnimal.attack},{spiritAnimal.defense},{spiritAnimal.health},{spiritAnimal.speed},{spiritAnimal.elementType}";
+                            
+                            // Add empty NapAm fields
+                            line += ",,,,,";
+                            
+                            // Add Spirit Animal specific fields
+                            line += $",\"{EscapeCsvField(spiritAnimal.supportEffectDescription)}\",,,,\"{spiritAnimal.zodiacAnimal}\",{spiritAnimal.activationType},\"{EscapeCsvField(spiritAnimal.activationConditionDescription)}\",{spiritAnimal.conditionType},{spiritAnimal.conditionValue},";
+                            
+                            writer.WriteLine(line);
+                        }
+                        else if (cardObj is JokerCardDataSO joker)
+                        {
+                            string line = $"{joker.cardId},\"{EscapeCsvField(joker.cardKeyName)}\",\"{EscapeCsvField(joker.cardName)}\",\"{EscapeCsvField(joker.description)}\",{joker.cardType},{joker.rarity},{joker.cost},{joker.attack},{joker.defense},{joker.health},{joker.speed},{joker.elementType}";
+                            
+                            // Add empty NapAm fields
+                            line += ",,,,,";
+                            
+                            // Add Joker specific fields
+                            line += $",\"{EscapeCsvField(joker.effectDescription)}\",,,,,,{joker.activationType},\"{EscapeCsvField(joker.activationConditionDescription)}\",{joker.conditionType},{joker.conditionValue},{joker.cooldownTime}";
+                            
+                            writer.WriteLine(line);
+                        }
+                        else if (cardObj is MonsterCardDataSO monster && monster.effects.Length > 0)
+                        {
+                            string line = $"{monster.cardId},\"{EscapeCsvField(monster.cardKeyName)}\",\"{EscapeCsvField(monster.cardName)}\",\"{EscapeCsvField(monster.description)}\",{monster.cardType},{monster.rarity},{monster.cost},{monster.attack},{monster.defense},{monster.health},{monster.speed},{monster.elementType}";
+                            
+                            // Add empty NapAm fields
+                            line += ",,,,,";
+                            
+                            // Add Monster specific fields
+                            var effect = monster.effects[0];
+                            line += $",\"{EscapeCsvField(effect.effectDescription)}\",{effect.effectType},{effect.effectValue},{effect.effectDuration}";
+                            
+                            // Empty fields for other details
+                            line += ",,,,,,";
                             
                             writer.WriteLine(line);
                         }

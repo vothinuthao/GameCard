@@ -2,28 +2,53 @@
 using Components;
 using Core;
 using Core.Utils;
+using Data;
+using UnityEngine;
 
 namespace Factories
 {
     /// <summary>
-    /// Factory for creating different types of cards
+    /// Factory for creating cards
+    /// Factory để tạo thẻ bài từ scratch hoặc từ ScriptableObjects
     /// </summary>
     public class CardFactory
     {
+        // Reference to EntityManager
         private EntityManager _entityManager;
+        
+        // Reference to ScriptableObjectFactory
+        private ScriptableObjectFactory _scriptableObjectFactory;
         
         // Constructor
         public CardFactory(EntityManager entityManager)
         {
-            this._entityManager = entityManager;
+            _entityManager = entityManager;
+            
+            // Get or create ScriptableObjectFactory instance
+            if (ScriptableObjectFactory.HasInstance)
+            {
+                _scriptableObjectFactory = ScriptableObjectFactory.Instance;
+                if (!_scriptableObjectFactory.IsInitialized)
+                {
+                    _scriptableObjectFactory.Initialize(entityManager);
+                }
+            }
+            else
+            {
+                _scriptableObjectFactory = ScriptableObjectFactory.Instance;
+                _scriptableObjectFactory.Initialize(entityManager);
+            }
         }
         
         /// <summary>
         /// Create a basic elemental card
+        /// Tạo thẻ nguyên tố cơ bản từ scratch
         /// </summary>
-        public Entity CreateElementalCard(string name, string description, ElementType elementType, 
-                                          Rarity rarity, int attack, int defense, int health, int speed, int cost)
+        public Entity CreateBasicCard(string name, string description, ElementType elementType, 
+                                     int napAmIndex, Rarity rarity, int cost,
+                                     int attack, int defense, int health, int speed)
         {
+            // Create a basic entity
             Entity card = _entityManager.CreateEntity();
             
             // Add CardInfoComponent
@@ -45,294 +70,170 @@ namespace Factories
             };
             card.AddComponent(element);
             
+            // Add NapAmComponent
+            // NapAmComponent napAm = new NapAmComponent();
+            // napAm.Initialize(elementType, napAmIndex);
+            // card.AddComponent(napAm);
+            
             // Add StatsComponent
-            StatsComponent stats = new StatsComponent(attack, defense, health, speed);
+            StatsComponent stats = new StatsComponent
+            {
+                Attack = attack,
+                Defense = defense,
+                Health = health,
+                MaxHealth = health,
+                Speed = speed
+            };
             card.AddComponent(stats);
             
-            // TODO: Add artwork loading logic - in a real implementation, this would load the appropriate sprite
-            // cardInfo.Artwork = Resources.Load<Sprite>($"Cards/{elementType}/{name}");
-            
             return card;
         }
-        
+
         /// <summary>
-        /// Create a card with a NapAm
+        /// Create card from ScriptableObject
+        /// Tạo thẻ từ ScriptableObject
         /// </summary>
-        public Entity CreateElementalCardWithNapAm(string name, string description, ElementType elementType, 
-                                                 int napAmIndex, Rarity rarity, int attack, int defense, 
-                                                 int health, int speed, int cost)
+        public Entity CreateCardFromSO(CardDataSO cardData)
         {
-            Entity card = CreateElementalCard(name, description, elementType, rarity, attack, defense, health, speed, cost);
-            
-            // Add NapAmComponent
-            NapAmComponent napAm = new NapAmComponent(elementType, napAmIndex);
-            card.AddComponent(napAm);
-            
-            return card;
+            // Use ScriptableObjectFactory to create the card
+            return _scriptableObjectFactory.CreateCardFromSO(cardData);
         }
         
         /// <summary>
-        /// Create a Divine Beast card (Thẻ Thần Thú)
-        /// </summary>
-        public Entity CreateDivineBeastCard(string name, string description, ElementType elementType, 
-                                            Rarity rarity, int attack, int defense, int health, int speed,
-                                            Effect specialEffect, int cost)
-        {
-            Entity card = CreateElementalCard(name, description, elementType, rarity, attack, defense, health, speed, cost);
-            
-            // Change type to Divine Beast
-            CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
-            if (cardInfo != null)
-            {
-                cardInfo.Type = CardType.DivineBeast;
-            }
-            
-            // Add effect
-            EffectComponent effectComponent = new EffectComponent();
-            effectComponent.AddEffect(specialEffect);
-            card.AddComponent(effectComponent);
-            
-            return card;
-        }
-        
-        /// <summary>
-        /// Create a Monster card (Thẻ Yêu Quái)
-        /// </summary>
-        public Entity CreateMonsterCard(string name, string description, ElementType elementType, 
-                                       Rarity rarity, int attack, int defense, int health, int speed,
-                                       Effect[] effects, int cost)
-        {
-            Entity card = CreateElementalCard(name, description, elementType, rarity, attack, defense, health, speed, cost);
-            
-            // Change type to Monster
-            CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
-            if (cardInfo != null)
-            {
-                cardInfo.Type = CardType.Monster;
-            }
-            
-            // Add effects
-            EffectComponent effectComponent = new EffectComponent();
-            foreach (var effect in effects)
-            {
-                effectComponent.AddEffect(effect);
-            }
-            card.AddComponent(effectComponent);
-            
-            return card;
-        }
-        
-        /// <summary>
-        /// Create a Spirit Animal card (Thẻ Linh Thú)
-        /// </summary>
-        public Entity CreateSpiritAnimalCard(string name, string description, ElementType elementType, 
-                                           Rarity rarity, int attack, int defense, int health, int speed,
-                                           Effect supportEffect, int cost)
-        {
-            Entity card = CreateElementalCard(name, description, elementType, rarity, attack, defense, health, speed, cost);
-            
-            // Change type to Spirit Animal
-            CardInfoComponent cardInfo = card.GetComponent<CardInfoComponent>();
-            if (cardInfo != null)
-            {
-                cardInfo.Type = CardType.SpiritAnimal;
-            }
-            
-            // Add support component
-            SupportCardComponent supportComponent = new SupportCardComponent
-            {
-                ActivationType = ActivationType.Persistent, // Default activation type
-                Effect = supportEffect,
-                CooldownTime = 0, // No cooldown for persistent effects
-                CurrentCooldown = 0,
-                IsActive = false
-            };
-            card.AddComponent(supportComponent);
-            
-            return card;
-        }
-        
-        /// <summary>
-        /// Create a Joker card (Thẻ Joker)
-        /// </summary>
-        public Entity CreateJokerCard(string name, string description, Rarity rarity, 
-                                    Effect transformativeEffect, ActivationCondition condition, int cost)
-        {
-            Entity card = _entityManager.CreateEntity();
-            
-            // Add CardInfoComponent
-            CardInfoComponent cardInfo = new CardInfoComponent
-            {
-                Name = name,
-                Description = description,
-                Type = CardType.Joker,
-                Rarity = rarity,
-                Cost = cost,
-                State = CardState.InDeck
-            };
-            card.AddComponent(cardInfo);
-            
-            // Add support component with transformative activation
-            SupportCardComponent supportComponent = new SupportCardComponent
-            {
-                ActivationType = ActivationType.Transformative,
-                Effect = transformativeEffect,
-                Condition = condition,
-                CooldownTime = 5, // Joker cards typically have long cooldowns
-                CurrentCooldown = 0,
-                IsActive = false
-            };
-            card.AddComponent(supportComponent);
-            
-            return card;
-        }
-        
-        /// <summary>
-        /// Create a preset Metal element card
-        /// </summary>
-        public Entity CreateMetalCard(string name, string description, MetalNapAm napAm, Rarity rarity, int cost)
-        {
-            // Default stats based on rarity
-            int attack, defense, health, speed;
-            GetDefaultStats(rarity, out attack, out defense, out health, out speed);
-            
-            // Adjust stats based on NapAm
-            switch (napAm)
-            {
-                case MetalNapAm.SwordQi: // Offensive
-                    attack += 2;
-                    break;
-                case MetalNapAm.Hardness: // Defensive
-                    defense += 2;
-                    break;
-                case MetalNapAm.Purity: // Balanced
-                    attack += 1;
-                    defense += 1;
-                    break;
-                case MetalNapAm.Reflection: // Counter
-                    // Special counter ability would be implemented through effects
-                    break;
-                case MetalNapAm.Spirit: // Support
-                    // Special support ability would be implemented through effects
-                    break;
-                case MetalNapAm.Calmness: // Resistance
-                    health += 2;
-                    break;
-            }
-            
-            return CreateElementalCardWithNapAm(name, description, ElementType.Metal, (int)napAm, 
-                                              rarity, attack, defense, health, speed, cost);
-        }
-        
-        /// <summary>
-        /// Create a preset Wood element card
-        /// </summary>
-        public Entity CreateWoodCard(string name, string description, WoodNapAm napAm, Rarity rarity, int cost)
-        {
-            // Default stats based on rarity
-            int attack, defense, health, speed;
-            GetDefaultStats(rarity, out attack, out defense, out health, out speed);
-            
-            // Adjust stats based on NapAm
-            switch (napAm)
-            {
-                case WoodNapAm.Growth: // Health regen
-                    health += 2;
-                    break;
-                case WoodNapAm.Flexibility: // Speed
-                    speed += 2;
-                    break;
-                case WoodNapAm.Symbiosis: // Synergy
-                    // Special synergy ability would be implemented through effects
-                    break;
-                case WoodNapAm.Regeneration: // Healing
-                    health += 3;
-                    attack -= 1;
-                    break;
-                case WoodNapAm.Toxin: // DoT
-                    attack += 1;
-                    // DoT ability would be implemented through effects
-                    break;
-                case WoodNapAm.Shelter: // Protection
-                    defense += 3;
-                    attack -= 1;
-                    break;
-            }
-            
-            return CreateElementalCardWithNapAm(name, description, ElementType.Wood, (int)napAm, 
-                                              rarity, attack, defense, health, speed, cost);
-        }
-        
-        /// <summary>
-        /// Get default stats based on card rarity
-        /// </summary>
-        private void GetDefaultStats(Rarity rarity, out int attack, out int defense, out int health, out int speed)
-        {
-            switch (rarity)
-            {
-                case Rarity.Common:
-                    attack = 2;
-                    defense = 2;
-                    health = 5;
-                    speed = 2;
-                    break;
-                case Rarity.Rare:
-                    attack = 3;
-                    defense = 3;
-                    health = 7;
-                    speed = 3;
-                    break;
-                case Rarity.Epic:
-                    attack = 5;
-                    defense = 4;
-                    health = 10;
-                    speed = 4;
-                    break;
-                case Rarity.Legendary:
-                    attack = 7;
-                    defense = 6;
-                    health = 15;
-                    speed = 5;
-                    break;
-                default:
-                    attack = 1;
-                    defense = 1;
-                    health = 3;
-                    speed = 1;
-                    break;
-            }
-        }
-        
-        /// <summary>
-        /// Create a sample deck for testing
+        /// Create a sample deck of cards
+        /// Tạo một bộ bài mẫu
         /// </summary>
         public List<Entity> CreateSampleDeck()
         {
             List<Entity> deck = new List<Entity>();
             
-            // Add some Metal cards
-            deck.Add(CreateMetalCard("Kim Chúc Kiếm", "A powerful metal sword that cuts through defenses", MetalNapAm.SwordQi, Rarity.Common, 1));
-            deck.Add(CreateMetalCard("Thiết Bích Thuẫn", "A sturdy shield that provides strong defense", MetalNapAm.Hardness, Rarity.Common, 1));
+            // Basic Metal cards
+            deck.Add(CreateBasicCard("Kim Chúc Kiếm", "Thanh kiếm bằng kim loại sắc bén", ElementType.Metal, 0, Rarity.Common, 1, 4, 1, 5, 3));
+            deck.Add(CreateBasicCard("Thiết Bích Thuẫn", "Tấm khiên kim loại cứng cáp", ElementType.Metal, 1, Rarity.Common, 1, 1, 5, 6, 2));
             
-            // Add some Wood cards
-            deck.Add(CreateWoodCard("Thanh Mộc Châm", "Sharp wooden needles that can pierce enemies", WoodNapAm.Toxin, Rarity.Common, 1));
-            deck.Add(CreateWoodCard("Sinh Mệnh Chi Mộc", "A tree of life that provides healing", WoodNapAm.Regeneration, Rarity.Rare, 2));
+            // Basic Wood cards
+            deck.Add(CreateBasicCard("Mộc Linh Trượng", "Gậy pháp thuật làm từ gỗ linh", ElementType.Wood, 0, Rarity.Common, 1, 3, 2, 5, 4));
+            deck.Add(CreateBasicCard("Sinh Mệnh Chi Mộc", "Cây sinh mệnh hồi phục sinh lực", ElementType.Wood, 3, Rarity.Common, 1, 2, 3, 7, 3));
             
-            // Add a Divine Beast
-            deck.Add(CreateDivineBeastCard("Bạch Hổ", "The white tiger of the west, master of metal", ElementType.Metal, 
-                                         Rarity.Epic, 6, 4, 12, 5, 
-                                         new StatBuffEffect("Tiger's Might", "Increases attack power", 3, "attack", 2f), 
-                                         3));
+            // Basic Water cards
+            deck.Add(CreateBasicCard("Băng Ấn", "Ấn pháp thuật băng giá", ElementType.Water, 1, Rarity.Common, 1, 3, 3, 5, 3));
+            deck.Add(CreateBasicCard("Thuỷ Tinh Châu", "Viên ngọc chứa năng lượng nước", ElementType.Water, 0, Rarity.Common, 1, 2, 4, 6, 3));
             
-            // Add a Monster
-            deck.Add(CreateMonsterCard("Cửu Vĩ Hồ", "Nine-tailed fox with mesmerizing powers", ElementType.Fire,
-                                     Rarity.Epic, 5, 3, 10, 6,
-                                     new Effect[] { 
-                                         new DotEffect("Fox Fire", "Burns the target over time", 3, 2)
-                                     },
-                                     3));
+            // Basic Fire cards
+            deck.Add(CreateBasicCard("Hoả Diệm Châm", "Ngọn lửa được phong ấn", ElementType.Fire, 0, Rarity.Common, 1, 5, 1, 4, 4));
+            deck.Add(CreateBasicCard("Xích Tâm Ấn", "Ấn lửa đỏ thiêu đốt kẻ thù", ElementType.Fire, 1, Rarity.Common, 1, 4, 2, 5, 3));
+            
+            // Basic Earth cards
+            deck.Add(CreateBasicCard("Thổ Nang", "Túi đất chứa sức mạnh đất", ElementType.Earth, 0, Rarity.Common, 1, 2, 5, 7, 1));
+            deck.Add(CreateBasicCard("Kiên Thạch Thuẫn", "Khiên đá cứng cáp", ElementType.Earth, 0, Rarity.Common, 1, 1, 6, 8, 1));
             
             return deck;
+        }
+        
+        /// <summary>
+        /// Create a themed deck based on element
+        /// Tạo bộ bài theo chủ đề nguyên tố
+        /// </summary>
+        public List<Entity> CreateThemedDeck(ElementType elementType, int cardCount = 8)
+        {
+            List<Entity> deck = new List<Entity>();
+            List<CardDataSO> elementCards = LoadCardsByElement(elementType);
+            
+            // If we can't find enough element-specific cards, create basic ones
+            if (elementCards == null || elementCards.Count < cardCount)
+            {
+                // Create basic cards of the specified element
+                switch (elementType)
+                {
+                    case ElementType.Metal:
+                        deck.Add(CreateBasicCard("Kim Chúc Kiếm", "Thanh kiếm bằng kim loại sắc bén", ElementType.Metal, 0, Rarity.Common, 1, 4, 1, 5, 3));
+                        deck.Add(CreateBasicCard("Thiết Bích Thuẫn", "Tấm khiên kim loại cứng cáp", ElementType.Metal, 1, Rarity.Common, 1, 1, 5, 6, 2));
+                        deck.Add(CreateBasicCard("Kim Châm", "Những mũi kim nhỏ nhưng sắc bén", ElementType.Metal, 0, Rarity.Common, 1, 3, 2, 4, 5));
+                        deck.Add(CreateBasicCard("Tụ Kim Chủy", "Vũ khí tạo từ kim loại ngưng tụ", ElementType.Metal, 0, Rarity.Common, 2, 5, 2, 6, 3));
+                        break;
+                        
+                    case ElementType.Wood:
+                        deck.Add(CreateBasicCard("Mộc Linh Trượng", "Gậy pháp thuật làm từ gỗ linh", ElementType.Wood, 0, Rarity.Common, 1, 3, 2, 5, 4));
+                        deck.Add(CreateBasicCard("Sinh Mệnh Chi Mộc", "Cây sinh mệnh hồi phục sinh lực", ElementType.Wood, 3, Rarity.Common, 1, 2, 3, 7, 3));
+                        deck.Add(CreateBasicCard("Cây Độc", "Cây có độc tính mạnh", ElementType.Wood, 4, Rarity.Common, 1, 3, 2, 5, 4));
+                        deck.Add(CreateBasicCard("Mộc Khiên", "Khiên làm từ gỗ linh", ElementType.Wood, 5, Rarity.Common, 2, 1, 6, 8, 2));
+                        break;
+                        
+                    case ElementType.Water:
+                        deck.Add(CreateBasicCard("Băng Ấn", "Ấn pháp thuật băng giá", ElementType.Water, 1, Rarity.Common, 1, 3, 3, 5, 3));
+                        deck.Add(CreateBasicCard("Thuỷ Tinh Châu", "Viên ngọc chứa năng lượng nước", ElementType.Water, 0, Rarity.Common, 1, 2, 4, 6, 3));
+                        deck.Add(CreateBasicCard("Thuỷ Đao", "Dao tạo từ nước đông cứng", ElementType.Water, 1, Rarity.Common, 1, 4, 2, 5, 4));
+                        deck.Add(CreateBasicCard("Pháp Thuỷ", "Pháp thuật điều khiển nước", ElementType.Water, 2, Rarity.Common, 2, 5, 3, 6, 3));
+                        break;
+                        
+                    case ElementType.Fire:
+                        deck.Add(CreateBasicCard("Hoả Diệm Châm", "Ngọn lửa được phong ấn", ElementType.Fire, 0, Rarity.Common, 1, 5, 1, 4, 4));
+                        deck.Add(CreateBasicCard("Xích Tâm Ấn", "Ấn lửa đỏ thiêu đốt kẻ thù", ElementType.Fire, 1, Rarity.Common, 1, 4, 2, 5, 3));
+                        deck.Add(CreateBasicCard("Hoả Cầu", "Quả cầu lửa phá huỷ mọi thứ", ElementType.Fire, 1, Rarity.Common, 1, 5, 1, 4, 5));
+                        deck.Add(CreateBasicCard("Phượng Hoả", "Lửa của phượng hoàng", ElementType.Fire, 0, Rarity.Common, 2, 6, 2, 5, 4));
+                        break;
+                        
+                    case ElementType.Earth:
+                        deck.Add(CreateBasicCard("Thổ Nang", "Túi đất chứa sức mạnh đất", ElementType.Earth, 0, Rarity.Common, 1, 2, 5, 7, 1));
+                        deck.Add(CreateBasicCard("Kiên Thạch Thuẫn", "Khiên đá cứng cáp", ElementType.Earth, 0, Rarity.Common, 1, 1, 6, 8, 1));
+                        deck.Add(CreateBasicCard("Thạch Chùy", "Búa đá nặng nề", ElementType.Earth, 0, Rarity.Common, 1, 4, 3, 6, 2));
+                        deck.Add(CreateBasicCard("Đại Địa Chi Lực", "Sức mạnh của đất", ElementType.Earth, 5, Rarity.Common, 2, 3, 5, 8, 1));
+                        break;
+                }
+                
+                // Add some basic cards from other elements to make the deck diverse
+                deck.Add(CreateBasicCard("Băng Ấn", "Ấn pháp thuật băng giá", ElementType.Water, 1, Rarity.Common, 1, 3, 3, 5, 3));
+                deck.Add(CreateBasicCard("Hoả Diệm Châm", "Ngọn lửa được phong ấn", ElementType.Fire, 0, Rarity.Common, 1, 5, 1, 4, 4));
+                deck.Add(CreateBasicCard("Mộc Linh Trượng", "Gậy pháp thuật làm từ gỗ linh", ElementType.Wood, 0, Rarity.Common, 1, 3, 2, 5, 4));
+                deck.Add(CreateBasicCard("Thổ Nang", "Túi đất chứa sức mạnh đất", ElementType.Earth, 0, Rarity.Common, 1, 2, 5, 7, 1));
+            }
+            else
+            {
+                // Create cards from ScriptableObjects
+                for (int i = 0; i < Mathf.Min(cardCount, elementCards.Count); i++)
+                {
+                    Entity card = CreateCardFromSO(elementCards[i]);
+                    if (card != null)
+                    {
+                        deck.Add(card);
+                    }
+                }
+            }
+            
+            // Ensure deck has the requested number of cards
+            while (deck.Count < cardCount && deck.Count > 0)
+            {
+                // Duplicate random cards if we don't have enough
+                int randomIndex = Random.Range(0, deck.Count);
+                deck.Add(deck[randomIndex]);
+            }
+            
+            return deck;
+        }
+        
+        /// <summary>
+        /// Load cards by element from Resources
+        /// Tải thẻ theo nguyên tố từ Resources
+        /// </summary>
+        private List<CardDataSO> LoadCardsByElement(ElementType elementType)
+        {
+            List<CardDataSO> result = new List<CardDataSO>();
+            
+            // Try to load cards from Resources
+            CardDataSO[] allCards = Resources.LoadAll<CardDataSO>("Cards");
+            
+            if (allCards != null && allCards.Length > 0)
+            {
+                foreach (var card in allCards)
+                {
+                    if (card.elementType == elementType)
+                    {
+                        result.Add(card);
+                    }
+                }
+            }
+            
+            return result;
         }
     }
 }
