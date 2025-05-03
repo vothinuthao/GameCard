@@ -8,6 +8,7 @@ namespace Core.Utils
     /// </summary>
     public enum MetalNapAm
     {
+        None =0,
         SwordQi,    // Kiếm Khí - Offensive attribute
         Hardness,   // Cương Nghị - Defensive attribute
         Purity,     // Thanh Tịnh - Purification attribute
@@ -21,6 +22,7 @@ namespace Core.Utils
     /// </summary>
     public enum WoodNapAm
     {
+        None =0,
         Growth,      // Sinh Trưởng - Health regeneration attribute
         Flexibility, // Linh Hoạt - Speed and evasion attribute
         Symbiosis,   // Cộng Sinh - Synergy attribute
@@ -34,6 +36,7 @@ namespace Core.Utils
     /// </summary>
     public enum WaterNapAm
     {
+        None =0,
         Adaptation,  // Thích Nghi - Adaptation attribute
         Ice,         // Băng Giá - Freezing attribute
         Flow,        // Dòng Chảy - Flow attribute
@@ -47,6 +50,7 @@ namespace Core.Utils
     /// </summary>
     public enum FireNapAm
     {
+        None =0,
         Burning,     // Thiêu Đốt - Burning attribute
         Explosion,   // Bùng Nổ - Explosion attribute
         Passion,     // Nhiệt Huyết - Passion attribute
@@ -60,6 +64,7 @@ namespace Core.Utils
     /// </summary>
     public enum EarthNapAm
     {
+        None =0,
         Solidity,  // Kiên Cố - Solidity attribute
         Gravity,   // Trọng Lực - Gravity attribute
         Fertility, // Màu Mỡ - Fertility attribute

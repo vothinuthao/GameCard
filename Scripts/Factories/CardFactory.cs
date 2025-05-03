@@ -64,10 +64,7 @@ namespace Factories
             card.AddComponent(cardInfo);
             
             // Add ElementComponent
-            ElementComponent element = new ElementComponent
-            {
-                Element = elementType
-            };
+            ElementComponent element = new ElementComponent(elementType, napAmIndex);
             card.AddComponent(element);
             
             // Add NapAmComponent

@@ -406,15 +406,10 @@ namespace RunTime
             }
             
             enemy.AddComponent(stats);
-            
-            // Add element component (random element)
-            ElementComponent element = new ElementComponent
-            {
-                Element = (ElementType)Random.Range(1, 6) // 1-5 = all elements except None(0)
-            };
+
+            ElementComponent element = new ElementComponent((ElementType)Random.Range(1, 6));
             enemy.AddComponent(element);
             
-            // Add card info component for display
             CardInfoComponent cardInfo = new CardInfoComponent
             {
                 Name = $"{enemyType.ToUpper()} Enemy",
@@ -429,7 +424,6 @@ namespace RunTime
         
         /// <summary>
         /// Play a card from the player's hand
-        /// Đánh một lá bài từ tay người chơi
         /// </summary>
         public void PlayCard(int cardIndex)
         {
@@ -458,7 +452,6 @@ namespace RunTime
         
         /// <summary>
         /// Play a card as a support card
-        /// Đánh lá bài làm thẻ hỗ trợ
         /// </summary>
         public void PlayAsSupport(int cardIndex)
         {

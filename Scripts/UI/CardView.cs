@@ -85,7 +85,6 @@ namespace UI
             // Get components
             CardInfoComponent cardInfo = _cardEntity.GetComponent<CardInfoComponent>();
             ElementComponent element = _cardEntity.GetComponent<ElementComponent>();
-            NapAmComponent napAm = _cardEntity.GetComponent<NapAmComponent>();
             StatsComponent stats = _cardEntity.GetComponent<StatsComponent>();
             SupportCardComponent supportCard = _cardEntity.GetComponent<SupportCardComponent>();
             
@@ -169,10 +168,10 @@ namespace UI
             }
             
             // Set NapAm
-            if (napAm != null && napAmText != null)
-            {
-                napAmText.text = napAm.GetNapAmVietnameseName();
-            }
+            // if (napAm != null && napAmText != null)
+            // {
+            //     napAmText.text = napAm.GetNapAmVietnameseName();
+            // }
             else if (napAmText != null)
             {
                 napAmText.text = string.Empty;

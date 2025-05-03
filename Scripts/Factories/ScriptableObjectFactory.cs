@@ -91,7 +91,7 @@ namespace Factories
             Entity card = _entityManager.CreateEntity();
             
             // If card data is null, create a default card
-            if (cardData == null)
+            if (!cardData)
             {
                 // Add default components
                 CardInfoComponent defaultInfo = new CardInfoComponent
@@ -107,10 +107,7 @@ namespace Factories
                 };
                 card.AddComponent(defaultInfo);
                 
-                ElementComponent defaultElement = new ElementComponent
-                {
-                    Element = ElementType.None
-                };
+                ElementComponent defaultElement = new ElementComponent(ElementType.None,0);
                 card.AddComponent(defaultElement);
                 
                 StatsComponent defaultStats = new StatsComponent
@@ -123,14 +120,8 @@ namespace Factories
                 };
                 card.AddComponent(defaultStats);
                 
-                // Add default NapAm component
-                NapAmComponent defaultNapAm = new NapAmComponent(ElementType.None, 0);
-                card.AddComponent(defaultNapAm);
-                
                 return card;
             }
-            
-            // Add CardInfoComponent
             CardInfoComponent cardInfo = new CardInfoComponent
             {
                 Id = cardData.cardId,
@@ -144,40 +135,32 @@ namespace Factories
                 State = CardState.InDeck
             };
             card.AddComponent(cardInfo);
-            
-            // Add ElementComponent
-            ElementComponent element = new ElementComponent
-            {
-                Element = cardData.elementType
-            };
+            ElementComponent element = new ElementComponent(cardData.elementType, cardData.napAmIndex);
             card.AddComponent(element);
             
-            // Add NapAmComponent based on element type
-            NapAmComponent napAm = null;
+            // switch (cardData.elementType)
+            // {
+            //     case ElementType.Metal:
+            //         napAm = new NapAmComponent(ElementType.Metal, cardData.metalNapAm);
+            //         break;
+            //     case ElementType.Wood:
+            //         napAm = new NapAmComponent(ElementType.Wood, cardData.woodNapAm);
+            //         break;
+            //     case ElementType.Water:
+            //         napAm = new NapAmComponent(ElementType.Water, cardData.waterNapAm);
+            //         break;
+            //     case ElementType.Fire:
+            //         napAm = new NapAmComponent(ElementType.Fire, cardData.fireNapAm);
+            //         break;
+            //     case ElementType.Earth:
+            //         napAm = new NapAmComponent(ElementType.Earth, cardData.earthNapAm);
+            //         break;
+            //     default:
+            //         napAm = new NapAmComponent(ElementType.None, 0);
+            //         break;
+            // }
             
-            switch (cardData.elementType)
-            {
-                case ElementType.Metal:
-                    napAm = new NapAmComponent(ElementType.Metal, cardData.metalNapAm);
-                    break;
-                case ElementType.Wood:
-                    napAm = new NapAmComponent(ElementType.Wood, cardData.woodNapAm);
-                    break;
-                case ElementType.Water:
-                    napAm = new NapAmComponent(ElementType.Water, cardData.waterNapAm);
-                    break;
-                case ElementType.Fire:
-                    napAm = new NapAmComponent(ElementType.Fire, cardData.fireNapAm);
-                    break;
-                case ElementType.Earth:
-                    napAm = new NapAmComponent(ElementType.Earth, cardData.earthNapAm);
-                    break;
-                default:
-                    napAm = new NapAmComponent(ElementType.None, 0);
-                    break;
-            }
-            
-            card.AddComponent(napAm);
+            // card.AddComponent(napAm);
             
             // Add StatsComponent
             StatsComponent stats = new StatsComponent
@@ -215,15 +198,6 @@ namespace Factories
                 State = CardState.InDeck
             };
             card.AddComponent(cardInfo);
-            
-            // Add ElementComponent
-            ElementComponent element = new ElementComponent
-            {
-                Element = cardData.elementType
-            };
-            card.AddComponent(element);
-            
-            // Add StatsComponent (for display purposes)
             StatsComponent stats = new StatsComponent
             {
                 Attack = cardData.attack,
@@ -251,7 +225,6 @@ namespace Factories
                 IsActive = false
             };
             card.AddComponent(supportComponent);
-            
             return card;
         }
         
