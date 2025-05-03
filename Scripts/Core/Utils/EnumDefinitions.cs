@@ -30,11 +30,11 @@
     public enum CardType
     {
         None = 0,
-        ElementalCard,      // Thẻ Nguyên Tố
-        DivineBeast,        // Thẻ Thần Thú
-        Monster,            // Thẻ Yêu Quái
-        SpiritAnimal,       // Thẻ Linh Thú
-        Joker               // Thẻ Joker
+        ElementalCard,
+        SupportCard,
+        // Monster,
+        // SpiritAnimal,
+        // Joker
     }
     
     /// <summary>
@@ -44,7 +44,7 @@
     {
         DivineBeast,
         Monster,
-        SpiritAnimal,
+        // SpiritAnimal,
         Artifact,
         Talisman,
         DivineWeapon

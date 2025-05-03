@@ -215,17 +215,19 @@ namespace Factories
         private List<CardDataSO> LoadCardsByElement(ElementType elementType)
         {
             List<CardDataSO> result = new List<CardDataSO>();
-            
-            // Try to load cards from Resources
             CardDataSO[] allCards = Resources.LoadAll<CardDataSO>("Cards");
             
             if (allCards != null && allCards.Length > 0)
             {
                 foreach (var card in allCards)
                 {
-                    if (card.elementType == elementType)
+                    if (card is ElementalCardDataSO)
                     {
-                        result.Add(card);
+                        ElementalCardDataSO elementalCard = (ElementalCardDataSO)card;
+                        if (elementalCard.elementType == elementType)
+                        {
+                            result.Add(card);
+                        }
                     }
                 }
             }

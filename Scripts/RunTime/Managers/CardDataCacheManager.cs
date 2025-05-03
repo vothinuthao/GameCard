@@ -121,7 +121,7 @@ namespace RunTime.Managers
                 }
                 
                 // Add to element cache
-                _elementalCardDataCache[cardData.elementType].Add(cardData);
+                // _elementalCardDataCache[cardData.elementType].Add(cardData);
                 
                 // Add to card type cache
                 _cardTypeDataCache[cardData.cardType].Add(cardData);
@@ -168,7 +168,7 @@ namespace RunTime.Managers
                 }
                 
                 // Add to element cache
-                _elementalCardDataCache[loadedData.elementType].Add(loadedData);
+                // _elementalCardDataCache[loadedData.elementType].Add(loadedData);
                 
                 // Add to card type cache
                 _cardTypeDataCache[loadedData.cardType].Add(loadedData);

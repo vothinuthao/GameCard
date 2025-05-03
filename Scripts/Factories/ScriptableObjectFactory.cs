@@ -63,19 +63,8 @@ namespace Factories
             {
                 case CardType.ElementalCard:
                     return CreateElementalCard(cardData as ElementalCardDataSO);
-                case CardType.DivineBeast:
-                case CardType.Monster:
-                case CardType.SpiritAnimal:
-                case CardType.Joker:
-                    if (cardData is SupportCardDataSO supportCardData)
-                    {
-                        return CreateSupportCard(supportCardData);
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[ScriptableObjectFactory] Expected SupportCardDataSO for {cardData.cardType} but got {cardData.GetType()}");
-                        return CreateElementalCard(null); // Fallback with null will create basic card
-                    }
+                case CardType.SupportCard:
+                    return CreateSupportCard(cardData as SupportCardDataSO);
                 default:
                     Debug.LogWarning($"[ScriptableObjectFactory] Unknown card type: {cardData.cardType}");
                     return CreateElementalCard(null); // Fallback

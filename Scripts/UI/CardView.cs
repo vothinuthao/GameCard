@@ -208,23 +208,23 @@ namespace UI
                 }
                 
                 // Add a support card type indicator based on the card type
-                if (cardArtwork != null && cardInfo.Type != CardType.ElementalCard)
-                {
-                    switch (cardInfo.Type)
-                    {
-                        case CardType.DivineBeast:
-                            cardArtwork.sprite = divineBeastIndicator;
-                            break;
-                        case CardType.Monster:
-                            cardArtwork.sprite = monsterIndicator;
-                            break;
-                        case CardType.SpiritAnimal:
-                            cardArtwork.sprite = spiritAnimalIndicator;
-                            break;
-                        // For now, we're using SpiritAnimal type for artifacts, talismans, and divine weapons
-                        // In a full implementation, these would have their own CardType
-                    }
-                }
+                // if (cardArtwork != null && cardInfo.Type != CardType.ElementalCard)
+                // {
+                //     switch (cardInfo.Type)
+                //     {
+                //         case CardType.DivineBeast:
+                //             cardArtwork.sprite = divineBeastIndicator;
+                //             break;
+                //         case CardType.Monster:
+                //             cardArtwork.sprite = monsterIndicator;
+                //             break;
+                //         case CardType.SpiritAnimal:
+                //             cardArtwork.sprite = spiritAnimalIndicator;
+                //             break;
+                //         // For now, we're using SpiritAnimal type for artifacts, talismans, and divine weapons
+                //         // In a full implementation, these would have their own CardType
+                //     }
+                // }
             }
             else
             {

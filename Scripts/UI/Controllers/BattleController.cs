@@ -94,7 +94,6 @@ namespace UI
                 _supportCardSystem = _gameManager.GetSupportCardSystem();
             }
             
-            // Initialize SupportZoneView
             if (supportZoneView != null)
             {
                 supportZoneView.SetBattleController(this);

@@ -1,4 +1,5 @@
-﻿using Core.Utils;
+﻿// Data/CardDataSO.cs
+using Core.Utils;
 using UnityEngine;
 
 namespace Data
@@ -20,10 +21,6 @@ namespace Data
         public Rarity rarity;
         public int cost;
         public Sprite artwork;
-        public ElementType elementType;
-
-        [Header("Other")]
-        public int napAmIndex;
         
         [Header("Stats")]
         public int attack;

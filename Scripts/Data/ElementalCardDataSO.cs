@@ -1,5 +1,4 @@
-﻿// File: Scripts/Data/ElementalCardDataSO.cs
-using Core.Utils;
+﻿using Core.Utils;
 using UnityEngine;
 
 namespace Data
@@ -13,6 +12,7 @@ namespace Data
         [Header("Nạp Âm Configuration")]
         [Tooltip("The element type of this card")]
         public ElementType elementType = ElementType.None;
+        public int napAmIndex = 0;
 
         [Tooltip("The Metal Nap Am type (only used when elementType is Metal)")]
         public MetalNapAm metalNapAm = MetalNapAm.SwordQi;

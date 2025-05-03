@@ -414,7 +414,7 @@ namespace RunTime
             {
                 Name = $"{enemyType.ToUpper()} Enemy",
                 Description = "An enemy that wants to defeat you.",
-                Type = CardType.Monster,
+                Type = CardType.SupportCard,
                 Rarity = Rarity.Common
             };
             enemy.AddComponent(cardInfo);
