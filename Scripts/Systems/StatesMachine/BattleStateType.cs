@@ -1,4 +1,4 @@
-﻿namespace Systems.States
+﻿namespace Systems.StatesMachine
 {
     /// <summary>
     /// Defines the possible states for a battle
@@ -16,5 +16,17 @@
         SupportCardCheck,   // Check and resolve support card activations
         BattleEnd,          // Battle has ended
         Reward              // Player receives rewards
+    }
+    /// <summary>
+    /// Support card activation types
+    /// </summary>
+    public enum ActivationType
+    {
+        OnEntry,        // Kích Hoạt Khi Vào Game
+        Persistent,     // Duy Trì Khi Diễn Ra Tính Điểm
+        Recurring,      // Lặp Lại Khi Đạt Điều Kiện
+        Triggered,      // Kích Hoạt Khi Đạt Điều Kiện
+        Reactive,       // Phản Ứng
+        Transformative  // Biến Đổi
     }
 }

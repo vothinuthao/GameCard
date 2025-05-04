@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using Core.Utils;
 using Data;
+using Systems.StatesMachine;
 
 namespace Editor
 {
@@ -24,20 +25,22 @@ namespace Editor
         private string _cardName = "New Card";
         private string _cardDescription = "Card description";
         private CardType _cardType = CardType.ElementalCard;
+        private SupportCardType _supportCardType = SupportCardType.DivineBeast;
         private Rarity _cardRarity = Rarity.Common;
         private int _cardCost = 1;
         private int _cardAttack = 2;
         private int _cardDefense = 2;
         private int _cardHealth = 5;
         private int _cardSpeed = 2;
+        private int _napAmIndex = 1;
         private ElementType _cardElement = ElementType.Metal;
-        
+
         // Nap Am selections (for ElementalCard only)
-        private MetalNapAm _metalNapAm = MetalNapAm.SwordQi;
-        private WoodNapAm _woodNapAm = WoodNapAm.Growth;
-        private WaterNapAm _waterNapAm = WaterNapAm.Adaptation;
-        private FireNapAm _fireNapAm = FireNapAm.Burning;
-        private EarthNapAm _earthNapAm = EarthNapAm.Solidity;
+        // private MetalNapAm _metalNapAm = MetalNapAm.SwordQi;
+        // private WoodNapAm _woodNapAm = WoodNapAm.Growth;
+        // private WaterNapAm _waterNapAm = WaterNapAm.Adaptation;
+        // private FireNapAm _fireNapAm = FireNapAm.Burning;
+        // private EarthNapAm _earthNapAm = EarthNapAm.Solidity;
 
         // Batch generation
         private int _batchAmount = 5;
@@ -53,25 +56,30 @@ namespace Editor
         private float _maxSpeed = 5;
         private float _minCost = 1;
         private float _maxCost = 3;
-        
-        // Special card fields
+
+        // Support card fields
         private string _effectDescription = "";
         private string _effectTargetStat = "attack";
+        private string _activationConditionDescription = "attack";
         private float _effectValue = 1.0f;
         private int _effectDuration = 3;
         private ActivationType _activationType = ActivationType.Persistent;
-        private string _activationConditionDescription = "";
-        private string _conditionType = "health";
+        private ActivationConditionType _conditionType = ActivationConditionType.None;
+        private string _conditionParameter = "";
         private float _conditionValue = 0.3f;
+        private float _conditionValue2 = 0.0f;
         private int _cooldownTime = 3;
         private string _zodiacAnimal = "";
-        
+        private EffectType _effectType = EffectType.None;
+        private string _effectParameter = "";
+        private float _effectValue2 = 0.0f;
+
         // List of generated cards and tabs
         private List<ScriptableObject> _generatedCards = new List<ScriptableObject>();
         private Vector2 _scrollPosition;
         private int _selectedTab = 0;
         private string[] _tabNames = { "Create Single Card", "Batch Create Cards", "Card Manager" };
-        
+
         // Card preview
         private Texture2D _previewTexture;
 
@@ -116,7 +124,7 @@ namespace Editor
             _selectedTab = GUILayout.Toolbar(_selectedTab, _tabNames);
 
             EditorGUILayout.Space();
-            
+
             // Draw the selected tab
             switch (_selectedTab)
             {
@@ -137,15 +145,34 @@ namespace Editor
         /// </summary>
         private void CreateTypeSubfolders()
         {
-            string[] folders = {
+            string[] folders =
+            {
                 $"{_baseOutputFolder}/ElementalCards",
-                $"{_baseOutputFolder}/DivineBeasts",
-                $"{_baseOutputFolder}/Monsters",
-                $"{_baseOutputFolder}/SpiritAnimals",
-                $"{_baseOutputFolder}/Jokers"
+                $"{_baseOutputFolder}/SupportCards"
             };
 
             foreach (string folder in folders)
+            {
+                if (!Directory.Exists(folder))
+                {
+                    Directory.CreateDirectory(folder);
+                }
+            }
+
+            // Create subfolders for support card types
+            string supportCardsFolder = $"{_baseOutputFolder}/SupportCards";
+
+            string[] supportFolders =
+            {
+                $"{supportCardsFolder}/DivineBeasts",
+                $"{supportCardsFolder}/Monsters",
+                $"{supportCardsFolder}/SpiritAnimals",
+                $"{supportCardsFolder}/Jokers",
+                $"{supportCardsFolder}/Artifacts",
+                $"{supportCardsFolder}/Talismans"
+            };
+
+            foreach (string folder in supportFolders)
             {
                 if (!Directory.Exists(folder))
                 {
@@ -157,7 +184,8 @@ namespace Editor
         /// <summary>
         /// Gets the output folder for a specific card type
         /// </summary>
-        private string GetOutputFolderForType(CardType cardType)
+        private string GetOutputFolderForType(CardType cardType,
+            SupportCardType supportType = SupportCardType.DivineBeast)
         {
             if (!_useSubfolders)
                 return _baseOutputFolder;
@@ -166,14 +194,26 @@ namespace Editor
             {
                 case CardType.ElementalCard:
                     return $"{_baseOutputFolder}/ElementalCards";
-                case CardType.DivineBeast:
-                    return $"{_baseOutputFolder}/DivineBeasts";
-                case CardType.Monster:
-                    return $"{_baseOutputFolder}/Monsters";
-                case CardType.SpiritAnimal:
-                    return $"{_baseOutputFolder}/SpiritAnimals";
-                case CardType.Joker:
-                    return $"{_baseOutputFolder}/Jokers";
+                case CardType.SupportCard:
+                    string supportBaseFolder = $"{_baseOutputFolder}/SupportCards";
+
+                    switch (supportType)
+                    {
+                        case SupportCardType.DivineBeast:
+                            return $"{supportBaseFolder}/DivineBeasts";
+                        case SupportCardType.Monster:
+                            return $"{supportBaseFolder}/Monsters";
+                        case SupportCardType.DivineWeapon:
+                            return $"{supportBaseFolder}/SpiritAnimals";
+                        // case SupportCardType.DivineWeapon:
+                        //     return $"{supportBaseFolder}/Jokers";
+                        case SupportCardType.Artifact:
+                            return $"{supportBaseFolder}/Artifacts";
+                        case SupportCardType.Talisman:
+                            return $"{supportBaseFolder}/Talismans";
+                        default:
+                            return supportBaseFolder;
+                    }
                 default:
                     return _baseOutputFolder;
             }
@@ -191,7 +231,7 @@ namespace Editor
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
 
             EditorGUILayout.LabelField("Basic Information", EditorStyles.boldLabel);
-            
+
             // Output folder
             EditorGUILayout.BeginHorizontal();
             _baseOutputFolder = EditorGUILayout.TextField("Output folder:", _baseOutputFolder);
@@ -207,6 +247,7 @@ namespace Editor
                     }
                 }
             }
+
             EditorGUILayout.EndHorizontal();
 
             _useSubfolders = EditorGUILayout.Toggle("Use type subfolders:", _useSubfolders);
@@ -222,7 +263,18 @@ namespace Editor
             EditorGUILayout.LabelField("Card Details", EditorStyles.boldLabel);
             _cardName = EditorGUILayout.TextField("Card Name:", _cardName);
             _cardDescription = EditorGUILayout.TextArea(_cardDescription, GUILayout.Height(60));
+
+            // Card Type Selection with conditional Support Card Type
+            EditorGUILayout.BeginHorizontal();
             _cardType = (CardType)EditorGUILayout.EnumPopup("Card Type:", _cardType);
+
+            if (_cardType == CardType.SupportCard)
+            {
+                _supportCardType = (SupportCardType)EditorGUILayout.EnumPopup("Support Type:", _supportCardType);
+            }
+
+            EditorGUILayout.EndHorizontal();
+
             _cardRarity = (Rarity)EditorGUILayout.EnumPopup("Rarity:", _cardRarity);
             _cardCost = EditorGUILayout.IntSlider("Cost:", _cardCost, 0, 5);
 
@@ -234,34 +286,21 @@ namespace Editor
             _cardHealth = EditorGUILayout.IntSlider("Health:", _cardHealth, 1, 20);
             _cardSpeed = EditorGUILayout.IntSlider("Speed:", _cardSpeed, 1, 10);
 
-            // Element and NapAm
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Element & NapAm", EditorStyles.boldLabel);
-            _cardElement = (ElementType)EditorGUILayout.EnumPopup("Element:", _cardElement);
-
-            // Display different NapAm options based on the selected element
-            switch (_cardElement)
+            // Element and NapAm (only for ElementalCard)
+            if (_cardType == CardType.ElementalCard)
             {
-                case ElementType.Metal:
-                    _metalNapAm = (MetalNapAm)EditorGUILayout.EnumPopup("Metal Nap Am:", _metalNapAm);
-                    break;
-                case ElementType.Wood:
-                    _woodNapAm = (WoodNapAm)EditorGUILayout.EnumPopup("Wood Nap Am:", _woodNapAm);
-                    break;
-                case ElementType.Water:
-                    _waterNapAm = (WaterNapAm)EditorGUILayout.EnumPopup("Water Nap Am:", _waterNapAm);
-                    break;
-                case ElementType.Fire:
-                    _fireNapAm = (FireNapAm)EditorGUILayout.EnumPopup("Fire Nap Am:", _fireNapAm);
-                    break;
-                case ElementType.Earth:
-                    _earthNapAm = (EarthNapAm)EditorGUILayout.EnumPopup("Earth Nap Am:", _earthNapAm);
-                    break;
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("Element & NapAm", EditorStyles.boldLabel);
+                _cardElement = (ElementType)EditorGUILayout.EnumPopup("Element:", _cardElement);
+
             }
 
             // Special fields based on card type
-            EditorGUILayout.Space();
-            DrawSpecialFields();
+            if (_cardType == CardType.SupportCard)
+            {
+                EditorGUILayout.Space();
+                DrawSupportCardFields();
+            }
 
             // Generate button
             EditorGUILayout.Space();
@@ -274,48 +313,53 @@ namespace Editor
         }
 
         /// <summary>
-        /// Draws special fields based on card type
+        /// Draws fields specific to support card types
         /// </summary>
-        private void DrawSpecialFields()
+        private void DrawSupportCardFields()
         {
-            switch (_cardType)
+            EditorGUILayout.LabelField($"{_supportCardType} Configuration", EditorStyles.boldLabel);
+
+            // Common support card fields
+            _activationType = (ActivationType)EditorGUILayout.EnumPopup("Activation Type:", _activationType);
+
+            EditorGUILayout.LabelField("Activation Condition", EditorStyles.miniBoldLabel);
+            _conditionType = (ActivationConditionType)EditorGUILayout.EnumPopup("Condition Type:", _conditionType);
+            _conditionParameter = EditorGUILayout.TextField("Condition Parameter:", _conditionParameter);
+            _conditionValue = EditorGUILayout.FloatField("Condition Value:", _conditionValue);
+
+            if (_conditionType == ActivationConditionType.Threshold ||
+                _conditionType == ActivationConditionType.ElementCount)
             {
-                case CardType.DivineBeast:
-                    EditorGUILayout.LabelField("Divine Beast Information", EditorStyles.boldLabel);
-                    _effectDescription = EditorGUILayout.TextArea(_effectDescription, GUILayout.Height(60));
-                    _effectTargetStat = EditorGUILayout.TextField("Target Stat:", _effectTargetStat);
-                    _effectValue = EditorGUILayout.FloatField("Effect Value:", _effectValue);
-                    _effectDuration = EditorGUILayout.IntField("Effect Duration:", _effectDuration);
-                    break;
-
-                case CardType.Monster:
-                    EditorGUILayout.LabelField("Monster Information", EditorStyles.boldLabel);
-                    _effectDescription = EditorGUILayout.TextArea(_effectDescription, GUILayout.Height(60));
-                    _effectTargetStat = EditorGUILayout.TextField("Effect Type:", _effectTargetStat);
-                    _effectValue = EditorGUILayout.FloatField("Effect Value:", _effectValue);
-                    _effectDuration = EditorGUILayout.IntField("Effect Duration:", _effectDuration);
-                    break;
-
-                case CardType.SpiritAnimal:
-                    EditorGUILayout.LabelField("Spirit Animal Information", EditorStyles.boldLabel);
-                    _zodiacAnimal = EditorGUILayout.TextField("Zodiac Animal:", _zodiacAnimal);
-                    _effectDescription = EditorGUILayout.TextArea(_effectDescription, GUILayout.Height(60));
-                    _activationType = (ActivationType)EditorGUILayout.EnumPopup("Activation Type:", _activationType);
-                    _activationConditionDescription = EditorGUILayout.TextField("Condition Description:", _activationConditionDescription);
-                    _conditionType = EditorGUILayout.TextField("Condition Type:", _conditionType);
-                    _conditionValue = EditorGUILayout.FloatField("Condition Value:", _conditionValue);
-                    break;
-
-                case CardType.Joker:
-                    EditorGUILayout.LabelField("Joker Information", EditorStyles.boldLabel);
-                    _effectDescription = EditorGUILayout.TextArea(_effectDescription, GUILayout.Height(60));
-                    _activationType = (ActivationType)EditorGUILayout.EnumPopup("Activation Type:", _activationType);
-                    _activationConditionDescription = EditorGUILayout.TextField("Condition Description:", _activationConditionDescription);
-                    _conditionType = EditorGUILayout.TextField("Condition Type:", _conditionType);
-                    _conditionValue = EditorGUILayout.FloatField("Condition Value:", _conditionValue);
-                    _cooldownTime = EditorGUILayout.IntField("Cooldown Time:", _cooldownTime);
-                    break;
+                _conditionValue2 = EditorGUILayout.FloatField("Condition Value 2:", _conditionValue2);
             }
+
+            _activationConditionDescription = EditorGUILayout.TextArea("Condition Description:",
+                _activationConditionDescription, GUILayout.Height(40));
+
+            EditorGUILayout.LabelField("Effect Configuration", EditorStyles.miniBoldLabel);
+            _effectType = (EffectType)EditorGUILayout.EnumPopup("Effect Type:", _effectType);
+            _effectParameter = EditorGUILayout.TextField("Effect Parameter:", _effectParameter);
+            _effectValue = EditorGUILayout.FloatField("Effect Value:", _effectValue);
+
+            if (_effectType == EffectType.StatBuff ||
+                _effectType == EffectType.DamageOverTime)
+            {
+                _effectValue2 = EditorGUILayout.FloatField("Effect Value 2:", _effectValue2);
+            }
+
+            _effectDescription =
+                EditorGUILayout.TextArea("Effect Description:", _effectDescription, GUILayout.Height(60));
+            _effectDuration = EditorGUILayout.IntField("Effect Duration (turns):", _effectDuration);
+            _cooldownTime = EditorGUILayout.IntField("Cooldown Time (turns):", _cooldownTime);
+
+            // Type-specific fields
+            // switch (_supportCardType)
+            // {
+            //     case SupportCardType.SpiritAnimal:
+            //         _zodiacAnimal = EditorGUILayout.TextField("Zodiac Animal:", _zodiacAnimal);
+            //         break;
+            //         
+            // }
         }
 
         /// <summary>
@@ -331,28 +375,19 @@ namespace Editor
                 case CardType.ElementalCard:
                     cardData = CreateElementalCard();
                     break;
-                case CardType.DivineBeast:
-                    cardData = CreateDivineBeastCard();
-                    break;
-                case CardType.Monster:
-                    cardData = CreateMonsterCard();
-                    break;
-                case CardType.SpiritAnimal:
-                    cardData = CreateSpiritAnimalCard();
-                    break;
-                case CardType.Joker:
-                    cardData = CreateJokerCard();
+                case CardType.SupportCard:
+                    cardData = CreateSupportCard();
                     break;
             }
 
             if (cardData != null)
             {
                 // Get the output folder for this card type
-                string outputFolder = GetOutputFolderForType(_cardType);
-                
+                string outputFolder = GetOutputFolderForType(_cardType, _supportCardType);
+
                 // Sanitize card key name to ensure it's valid for a filename
                 string sanitizedKeyName = SanitizeFileName(_cardKeyName);
-                
+
                 // Generate filename based on key name
                 string assetPath = $"{outputFolder}/{sanitizedKeyName}.asset";
 
@@ -382,7 +417,7 @@ namespace Editor
         private ElementalCardDataSO CreateElementalCard()
         {
             ElementalCardDataSO card = CreateInstance<ElementalCardDataSO>();
-            
+
             // Set basic properties
             card.cardId = _cardId;
             card.cardKeyName = _cardKeyName;
@@ -396,152 +431,47 @@ namespace Editor
             card.health = _cardHealth;
             card.speed = _cardSpeed;
             card.elementType = _cardElement;
-            
-            // Set the appropriate Nap Am based on element type
-            switch (_cardElement)
-            {
-                case ElementType.Metal:
-                    card.metalNapAm = _metalNapAm;
-                    break;
-                case ElementType.Wood:
-                    card.woodNapAm = _woodNapAm;
-                    break;
-                case ElementType.Water:
-                    card.waterNapAm = _waterNapAm;
-                    break;
-                case ElementType.Fire:
-                    card.fireNapAm = _fireNapAm;
-                    break;
-                case ElementType.Earth:
-                    card.earthNapAm = _earthNapAm;
-                    break;
-            }
-            
+            card.napAmIndex = _napAmIndex;
+
             return card;
         }
 
         /// <summary>
-        /// Creates a Divine Beast Card
+        /// Creates a Support Card
         /// </summary>
-        private DivineBeastCardDataSO CreateDivineBeastCard()
+        private SupportCardDataSO CreateSupportCard()
         {
-            DivineBeastCardDataSO card = CreateInstance<DivineBeastCardDataSO>();
-            
+            SupportCardDataSO card = CreateInstance<SupportCardDataSO>();
+
             // Set basic properties
             card.cardId = _cardId;
             card.cardKeyName = _cardKeyName;
             card.cardName = _cardName;
             card.description = _cardDescription;
-            card.cardType = CardType.DivineBeast;
+            card.cardType = CardType.SupportCard;
+            card.supportCardType = _supportCardType;
             card.rarity = _cardRarity;
             card.cost = _cardCost;
             card.attack = _cardAttack;
             card.defense = _cardDefense;
             card.health = _cardHealth;
             card.speed = _cardSpeed;
-            
-            // Set Divine Beast specific properties
-            card.effectDescription = _effectDescription;
-            card.effectTargetStat = _effectTargetStat;
+
+            // Set support card specific properties
+            card.activationType = _activationType;
+            card.conditionType = _conditionType;
+            card.conditionParameter = _conditionParameter;
+            card.conditionValue = _conditionValue;
+            card.conditionValue2 = _conditionValue2;
+            card.effectType = _effectType;
+            card.effectParameter = _effectParameter;
             card.effectValue = _effectValue;
+            card.effectValue2 = _effectValue2;
             card.effectDuration = _effectDuration;
-            
-            return card;
-        }
-
-        /// <summary>
-        /// Creates a Monster Card
-        /// </summary>
-        private MonsterCardDataSO CreateMonsterCard()
-        {
-            MonsterCardDataSO card = CreateInstance<MonsterCardDataSO>();
-            
-            // Set basic properties
-            card.cardId = _cardId;
-            card.cardKeyName = _cardKeyName;
-            card.cardName = _cardName;
-            card.description = _cardDescription;
-            card.cardType = CardType.Monster;
-            card.rarity = _cardRarity;
-            card.cost = _cardCost;
-            card.attack = _cardAttack;
-            card.defense = _cardDefense;
-            card.health = _cardHealth;
-            card.speed = _cardSpeed;
-            
-            // Set Monster specific properties
-            card.effects = new MonsterCardDataSO.EffectData[1];
-            card.effects[0] = new MonsterCardDataSO.EffectData
-            {
-                effectName = _cardName + " Effect",
-                effectDescription = _effectDescription,
-                effectType = _effectTargetStat,
-                effectValue = _effectValue,
-                effectDuration = _effectDuration
-            };
-            
-            return card;
-        }
-
-        /// <summary>
-        /// Creates a Spirit Animal Card
-        /// </summary>
-        private SpiritAnimalCardDataSO CreateSpiritAnimalCard()
-        {
-            SpiritAnimalCardDataSO card = CreateInstance<SpiritAnimalCardDataSO>();
-            
-            // Set basic properties
-            card.cardId = _cardId;
-            card.cardKeyName = _cardKeyName;
-            card.cardName = _cardName;
-            card.description = _cardDescription;
-            card.cardType = CardType.SpiritAnimal;
-            card.rarity = _cardRarity;
-            card.cost = _cardCost;
-            card.attack = _cardAttack;
-            card.defense = _cardDefense;
-            card.health = _cardHealth;
-            card.speed = _cardSpeed;
-            
-            // Set Spirit Animal specific properties
-            card.zodiacAnimal = _zodiacAnimal;
-            card.supportEffectDescription = _effectDescription;
-            card.activationType = _activationType;
-            card.activationConditionDescription = _activationConditionDescription;
-            card.conditionType = _conditionType;
-            card.conditionValue = _conditionValue;
-            
-            return card;
-        }
-
-        /// <summary>
-        /// Creates a Joker Card
-        /// </summary>
-        private JokerCardDataSO CreateJokerCard()
-        {
-            JokerCardDataSO card = CreateInstance<JokerCardDataSO>();
-            
-            // Set basic properties
-            card.cardId = _cardId;
-            card.cardKeyName = _cardKeyName;
-            card.cardName = _cardName;
-            card.description = _cardDescription;
-            card.cardType = CardType.Joker;
-            card.rarity = _cardRarity;
-            card.cost = _cardCost;
-            card.attack = _cardAttack;
-            card.defense = _cardDefense;
-            card.health = _cardHealth;
-            card.speed = _cardSpeed;
-            
-            // Set Joker specific properties
-            card.effectDescription = _effectDescription;
-            card.activationType = _activationType;
-            card.activationConditionDescription = _activationConditionDescription;
-            card.conditionType = _conditionType;
-            card.conditionValue = _conditionValue;
             card.cooldownTime = _cooldownTime;
-            
+            card.effectDescription = _effectDescription;
+            card.activationConditionDescription = _activationConditionDescription;
+
             return card;
         }
 
@@ -557,7 +487,7 @@ namespace Editor
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
 
             EditorGUILayout.LabelField("Batch Card Creation", EditorStyles.boldLabel);
-            
+
             // Output folder
             EditorGUILayout.BeginHorizontal();
             _baseOutputFolder = EditorGUILayout.TextField("Output folder:", _baseOutputFolder);
@@ -573,15 +503,32 @@ namespace Editor
                     }
                 }
             }
+
             EditorGUILayout.EndHorizontal();
 
             _useSubfolders = EditorGUILayout.Toggle("Use type subfolders:", _useSubfolders);
 
             // Batch settings
             _batchAmount = EditorGUILayout.IntSlider("Number of cards:", _batchAmount, 1, 20);
+
+            // Card Type Selection with conditional Support Card Type
+            EditorGUILayout.BeginHorizontal();
             _cardType = (CardType)EditorGUILayout.EnumPopup("Card Type:", _cardType);
+
+            if (_cardType == CardType.SupportCard)
+            {
+                _supportCardType = (SupportCardType)EditorGUILayout.EnumPopup("Support Type:", _supportCardType);
+            }
+
+            EditorGUILayout.EndHorizontal();
+
             _cardRarity = (Rarity)EditorGUILayout.EnumPopup("Rarity:", _cardRarity);
-            _batchElement = (ElementType)EditorGUILayout.EnumPopup("Element:", _batchElement);
+
+            // Element selection only for ElementalCard
+            if (_cardType == CardType.ElementalCard)
+            {
+                _batchElement = (ElementType)EditorGUILayout.EnumPopup("Element:", _batchElement);
+            }
 
             // Starting ID
             _cardId = EditorGUILayout.IntField("Starting ID:", _cardId);
@@ -589,9 +536,9 @@ namespace Editor
             // Stat ranges
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Stat Ranges", EditorStyles.boldLabel);
-            
+
             _randomizeStats = EditorGUILayout.Toggle("Randomize stats:", _randomizeStats);
-            
+
             if (_randomizeStats)
             {
                 EditorGUILayout.LabelField("Cost:", $"{_minCost} - {_maxCost}");
@@ -661,7 +608,8 @@ namespace Editor
                 for (int i = 0; i < _batchAmount; i++)
                 {
                     // Update progress
-                    EditorUtility.DisplayProgressBar("Creating Cards", $"Creating card {i + 1}/{_batchAmount}", (float)(i + 1) / _batchAmount);
+                    EditorUtility.DisplayProgressBar("Creating Cards", $"Creating card {i + 1}/{_batchAmount}",
+                        (float)(i + 1) / _batchAmount);
 
                     // Randomize stats if needed
                     if (_randomizeStats)
@@ -675,72 +623,38 @@ namespace Editor
 
                     // Set card Id with index
                     int cardId = _cardId + i;
-                    
+
                     // Set card key and name with index
                     string originalKeyName = _cardKeyName;
                     string originalName = _cardName;
                     _cardKeyName = $"{originalKeyName}_{i + 1}";
                     _cardName = $"{originalName}_{i + 1}";
-                    
-                    // Set the element from batch settings
-                    _cardElement = _batchElement;
-                    
-                    // If ElementalCard, randomly select Nap Am based on element
+
+                    // Set the element from batch settings (if ElementalCard)
                     if (_cardType == CardType.ElementalCard)
                     {
-                        switch (_cardElement)
-                        {
-                            case ElementType.Metal:
-                                _metalNapAm = (MetalNapAm)Random.Range(0, 6); // 0-5 for 6 types
-                                break;
-                            case ElementType.Wood:
-                                _woodNapAm = (WoodNapAm)Random.Range(0, 6);
-                                break;
-                            case ElementType.Water:
-                                _waterNapAm = (WaterNapAm)Random.Range(0, 6);
-                                break;
-                            case ElementType.Fire:
-                                _fireNapAm = (FireNapAm)Random.Range(0, 6);
-                                break;
-                            case ElementType.Earth:
-                                _earthNapAm = (EarthNapAm)Random.Range(0, 6);
-                                break;
-                        }
-                    }
-                    
-                    // Random description if empty
-                    if (string.IsNullOrEmpty(_cardDescription))
-                    {
-                        _cardDescription = $"Auto-generated {_cardElement} card with {GetNapAmName(_cardElement)} specialization.";
+                        _cardElement = _batchElement;
+
                     }
 
                     // Create the card based on type
                     ScriptableObject cardData = null;
-                    
+
                     switch (_cardType)
                     {
                         case CardType.ElementalCard:
                             cardData = CreateElementalCard();
                             break;
-                        case CardType.DivineBeast:
-                            cardData = CreateDivineBeastCard();
-                            break;
-                        case CardType.Monster:
-                            cardData = CreateMonsterCard();
-                            break;
-                        case CardType.SpiritAnimal:
-                            cardData = CreateSpiritAnimalCard();
-                            break;
-                        case CardType.Joker:
-                            cardData = CreateJokerCard();
+                        case CardType.SupportCard:
+                            cardData = CreateSupportCard();
                             break;
                     }
 
                     if (cardData != null)
                     {
                         // Get output folder for the card type
-                        string outputFolder = GetOutputFolderForType(_cardType);
-                        
+                        string outputFolder = GetOutputFolderForType(_cardType, _supportCardType);
+
                         // Generate a filename based on the card key name
                         string sanitizedKeyName = SanitizeFileName(_cardKeyName);
                         string assetPath = $"{outputFolder}/{sanitizedKeyName}.asset";
@@ -798,6 +712,11 @@ namespace Editor
 
             EditorGUILayout.Space();
 
+            // CSV Import/Export section
+            DrawCsvImportSection();
+
+            EditorGUILayout.Space();
+
             // Display all cards in the Resources folder
             if (_generatedCards.Count == 0)
             {
@@ -809,63 +728,99 @@ namespace Editor
                 EditorGUILayout.Space();
 
                 // Display cards grouped by type
-                Dictionary<CardType, List<ScriptableObject>> cardsByType = GroupCardsByType();
-                
-                foreach (var group in cardsByType)
+                Dictionary<CardType, Dictionary<SupportCardType, List<ScriptableObject>>> cardsByType =
+                    GroupCardsByType();
+
+                // Display Elemental Cards
+                if (cardsByType.ContainsKey(CardType.ElementalCard))
                 {
-                    EditorGUILayout.LabelField($"{group.Key} ({group.Value.Count}):", EditorStyles.boldLabel);
-                    
-                    foreach (var card in group.Value)
+                    var elementalCards =
+                        cardsByType[CardType.ElementalCard][SupportCardType.DivineBeast]; // Placeholder, not used
+                    EditorGUILayout.LabelField($"Elemental Cards ({elementalCards.Count}):", EditorStyles.boldLabel);
+
+                    foreach (var card in elementalCards)
                     {
-                        if (card == null) continue;
-                        
-                        EditorGUILayout.BeginHorizontal("box");
-                        
-                        // Card name
-                        EditorGUILayout.LabelField(card.name, EditorStyles.boldLabel, GUILayout.Width(200));
-                        
-                        // Edit button
-                        if (GUILayout.Button("Edit", GUILayout.Width(60)))
-                        {
-                            Selection.activeObject = card;
-                            EditorGUIUtility.PingObject(card);
-                        }
-                        
-                        // Delete button
-                        if (GUILayout.Button("Delete", GUILayout.Width(60)))
-                        {
-                            if (EditorUtility.DisplayDialog("Confirm deletion", $"Are you sure you want to delete the card {card.name}?", "Delete", "Cancel"))
-                            {
-                                string assetPath = AssetDatabase.GetAssetPath(card);
-                                AssetDatabase.DeleteAsset(assetPath);
-                                AssetDatabase.SaveAssets();
-                                AssetDatabase.Refresh();
-                                RefreshCardList();
-                            }
-                        }
-                        
-                        // Duplicate button
-                        if (GUILayout.Button("Duplicate", GUILayout.Width(80)))
-                        {
-                            string assetPath = AssetDatabase.GetAssetPath(card);
-                            string newPath = assetPath.Replace(".asset", "_Copy.asset");
-                            
-                            if (AssetDatabase.CopyAsset(assetPath, newPath))
-                            {
-                                AssetDatabase.SaveAssets();
-                                AssetDatabase.Refresh();
-                                RefreshCardList();
-                            }
-                        }
-                        
-                        EditorGUILayout.EndHorizontal();
+                        DisplayCardEntry(card);
                     }
-                    
+
                     EditorGUILayout.Space();
+                }
+
+                // Display Support Cards by type
+                if (cardsByType.ContainsKey(CardType.SupportCard))
+                {
+                    var supportTypes = cardsByType[CardType.SupportCard];
+                    EditorGUILayout.LabelField($"Support Cards:", EditorStyles.boldLabel);
+
+                    foreach (var supportType in supportTypes.Keys)
+                    {
+                        var cards = supportTypes[supportType];
+                        if (cards.Count > 0)
+                        {
+                            EditorGUILayout.LabelField($"  {supportType} ({cards.Count}):", EditorStyles.boldLabel);
+
+                            foreach (var card in cards)
+                            {
+                                DisplayCardEntry(card);
+                            }
+
+                            EditorGUILayout.Space();
+                        }
+                    }
                 }
             }
 
             EditorGUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// Displays a single card entry in the manager list
+        /// </summary>
+        private void DisplayCardEntry(ScriptableObject card)
+        {
+            if (card == null) return;
+
+            EditorGUILayout.BeginHorizontal("box");
+
+            // Card name
+            EditorGUILayout.LabelField(card.name, EditorStyles.boldLabel, GUILayout.Width(200));
+
+            // Edit button
+            if (GUILayout.Button("Edit", GUILayout.Width(60)))
+            {
+                Selection.activeObject = card;
+                EditorGUIUtility.PingObject(card);
+            }
+
+            // Delete button
+            if (GUILayout.Button("Delete", GUILayout.Width(60)))
+            {
+                if (EditorUtility.DisplayDialog("Confirm deletion",
+                        $"Are you sure you want to delete the card {card.name}?", "Delete", "Cancel"))
+                {
+                    string assetPath = AssetDatabase.GetAssetPath(card);
+                    AssetDatabase.DeleteAsset(assetPath);
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+                    RefreshCardList();
+                }
+            }
+
+            // Duplicate button
+            if (GUILayout.Button("Duplicate", GUILayout.Width(80)))
+            {
+                string assetPath = AssetDatabase.GetAssetPath(card);
+                string newPath = assetPath.Replace(".asset", "_Copy.asset");
+
+                if (AssetDatabase.CopyAsset(assetPath, newPath))
+                {
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+                    RefreshCardList();
+                }
+            }
+
+            EditorGUILayout.EndHorizontal();
         }
 
         /// <summary>
@@ -874,33 +829,38 @@ namespace Editor
         private void RefreshCardList()
         {
             _generatedCards.Clear();
-            
+
             List<string> folderPaths = new List<string> { _baseOutputFolder };
-            
+
             // Add subfolders if enabled
             if (_useSubfolders)
             {
                 folderPaths.Add($"{_baseOutputFolder}/ElementalCards");
-                folderPaths.Add($"{_baseOutputFolder}/DivineBeasts");
-                folderPaths.Add($"{_baseOutputFolder}/Monsters");
-                folderPaths.Add($"{_baseOutputFolder}/SpiritAnimals");
-                folderPaths.Add($"{_baseOutputFolder}/Jokers");
+
+                string supportCardsFolder = $"{_baseOutputFolder}/SupportCards";
+                folderPaths.Add(supportCardsFolder);
+
+                folderPaths.Add($"{supportCardsFolder}/DivineBeasts");
+                folderPaths.Add($"{supportCardsFolder}/Monsters");
+                folderPaths.Add($"{supportCardsFolder}/SpiritAnimals");
+                folderPaths.Add($"{supportCardsFolder}/Jokers");
+                folderPaths.Add($"{supportCardsFolder}/Artifacts");
+                folderPaths.Add($"{supportCardsFolder}/Talismans");
             }
-            
+
             foreach (string folderPath in folderPaths)
             {
                 if (!Directory.Exists(folderPath))
                     continue;
-                    
+
                 string[] guids = AssetDatabase.FindAssets("t:ScriptableObject", new[] { folderPath });
-                
+
                 foreach (string guid in guids)
                 {
                     string path = AssetDatabase.GUIDToAssetPath(guid);
                     ScriptableObject obj = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
-                    
-                    if (obj is CardDataSO || obj is ElementalCardDataSO || obj is DivineBeastCardDataSO || 
-                        obj is MonsterCardDataSO || obj is SpiritAnimalCardDataSO || obj is JokerCardDataSO)
+
+                    if (obj is CardDataSO || obj is ElementalCardDataSO || obj is SupportCardDataSO)
                     {
                         _generatedCards.Add(obj);
                     }
@@ -909,25 +869,47 @@ namespace Editor
         }
 
         /// <summary>
-        /// Groups cards by their type
+        /// Groups cards by their type and subtype
         /// </summary>
-        private Dictionary<CardType, List<ScriptableObject>> GroupCardsByType()
+        private Dictionary<CardType, Dictionary<SupportCardType, List<ScriptableObject>>> GroupCardsByType()
         {
-            var result = new Dictionary<CardType, List<ScriptableObject>>();
-            
+            var result = new Dictionary<CardType, Dictionary<SupportCardType, List<ScriptableObject>>>();
+
+            // Initialize dictionaries
+            result[CardType.ElementalCard] = new Dictionary<SupportCardType, List<ScriptableObject>>();
+            result[CardType.ElementalCard][SupportCardType.DivineBeast] = new List<ScriptableObject>(); // Placeholder
+
+            result[CardType.SupportCard] = new Dictionary<SupportCardType, List<ScriptableObject>>();
+            foreach (SupportCardType supportType in System.Enum.GetValues(typeof(SupportCardType)))
+            {
+                result[CardType.SupportCard][supportType] = new List<ScriptableObject>();
+            }
+
             foreach (var card in _generatedCards)
             {
-                if (card is CardDataSO cardData)
+                if (card is ElementalCardDataSO elementalCard)
                 {
-                    if (!result.ContainsKey(cardData.cardType))
+                    result[CardType.ElementalCard][SupportCardType.DivineBeast].Add(card);
+                }
+                else if (card is SupportCardDataSO supportCard)
+                {
+                    result[CardType.SupportCard][supportCard.supportCardType].Add(card);
+                }
+                else if (card is CardDataSO cardData)
+                {
+                    // Handle legacy cards or other card types
+                    if (cardData.cardType == CardType.ElementalCard)
                     {
-                        result[cardData.cardType] = new List<ScriptableObject>();
+                        result[CardType.ElementalCard][SupportCardType.DivineBeast].Add(card);
                     }
-                    
-                    result[cardData.cardType].Add(card);
+                    else if (cardData.cardType == CardType.SupportCard)
+                    {
+                        // If we don't know the support type, default to DivineBeast
+                        result[CardType.SupportCard][SupportCardType.DivineBeast].Add(card);
+                    }
                 }
             }
-            
+
             return result;
         }
 
@@ -935,27 +917,6 @@ namespace Editor
 
         #region Utility Methods
 
-        /// <summary>
-        /// Get the Nap Am name based on selected element
-        /// </summary>
-        private string GetNapAmName(ElementType elementType)
-        {
-            switch (elementType)
-            {
-                case ElementType.Metal:
-                    return _metalNapAm.ToString();
-                case ElementType.Wood:
-                    return _woodNapAm.ToString();
-                case ElementType.Water:
-                    return _waterNapAm.ToString();
-                case ElementType.Fire:
-                    return _fireNapAm.ToString();
-                case ElementType.Earth:
-                    return _earthNapAm.ToString();
-                default:
-                    return "Unknown";
-            }
-        }
 
         /// <summary>
         /// Sanitizes a filename by removing invalid characters
@@ -964,15 +925,15 @@ namespace Editor
         {
             char[] invalidChars = Path.GetInvalidFileNameChars();
             string result = fileName;
-            
+
             foreach (char c in invalidChars)
             {
                 result = result.Replace(c, '_');
             }
-            
+
             return result;
         }
-
         #endregion
     }
 }
+
