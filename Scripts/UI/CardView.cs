@@ -285,7 +285,7 @@ namespace UI
             if (_handIndex >= 0)
             {
                 // Call GameManager to play the card
-                GameManager.Instance.PlayCard(_handIndex);
+                // GameManager.Instance.PlayCard(_handIndex);
             }
         }
         
